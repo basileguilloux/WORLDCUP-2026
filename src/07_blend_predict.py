@@ -90,3 +90,13 @@ print("\nPower ranking WITH FIFA blend (was Elo-only):")
 print(f"{'#':>3} {'team':<16}{'pts':>6}{'(Elo-only pts)':>16}")
 for i, (t, p) in enumerate(sorted(new.items(), key=lambda x: -x[1])[:12], 1):
     print(f"{i:>3} {t:<16}{p:>6.2f}{old[t]:>16.2f}")
+
+# --- save the full power ranking (blended prediction) to a file ---
+ranking = pd.DataFrame(
+    [(t, new[t], old.get(t, np.nan), elo[t], fifa_elo.get(t, np.nan), blend_weight(t), recent[t])
+     for t in sorted(new, key=lambda x: -new[x])],
+    columns=["team", "expected_points_blended", "expected_points_elo_only",
+             "elo", "fifa_equivalent_elo", "fifa_blend_weight", "recent_matches"],
+)
+ranking.to_csv("data/predictions.csv", index=False)
+print(f"\nSaved full power ranking to data/predictions.csv ({len(ranking)} teams)")
