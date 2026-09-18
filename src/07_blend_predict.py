@@ -1,6 +1,9 @@
 """Phase 4b: blend official FIFA ranking into each WC team's current strength,
 then re-predict the fixtures.
 
+Output: data/power_rankings.csv (one row per team — a power ranking, NOT
+per-fixture probabilities; those come from 08_fixture_predictions.py).
+
 Why blend (not retrain): the FIFA data is a single pre-tournament snapshot, so
 it can't be a historical training feature. But it's an excellent *prior* for the
 present - especially for teams with few recent matches, where our computed Elo
@@ -98,5 +101,5 @@ ranking = pd.DataFrame(
     columns=["team", "expected_points_blended", "expected_points_elo_only",
              "elo", "fifa_equivalent_elo", "fifa_blend_weight", "recent_matches"],
 )
-ranking.to_csv("data/predictions.csv", index=False)
-print(f"\nSaved full power ranking to data/predictions.csv ({len(ranking)} teams)")
+ranking.to_csv("data/power_rankings.csv", index=False)
+print(f"\nSaved full power ranking to data/power_rankings.csv ({len(ranking)} teams)")

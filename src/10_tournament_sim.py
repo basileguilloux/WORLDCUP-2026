@@ -8,6 +8,8 @@ Match engine
 Outcome class (0=away,1=draw,2=home) is sampled from the Step-3 FINAL ensemble
 (0.3 * Dixon-Coles Poisson + 0.7 * multinomial logit, T=0.95) — the exact model
 behind data/predictions.csv, so the sim inherits its 0.9024 walk-forward log-loss.
+It REFITS that ensemble in-process from data/features.csv rather than reading any
+predictions CSV, so it needs no prediction file and ignores the team-news overlay.
 A scoreline is then sampled from the DC-Poisson grid CONDITIONAL on that class,
 which gives the goal difference / goals for that group tables need without
 disturbing the calibrated outcome probabilities.

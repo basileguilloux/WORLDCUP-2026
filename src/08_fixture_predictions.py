@@ -9,7 +9,11 @@ Strength = current replayed Elo, blended with the FIFA-ranking prior (more FIFA
 weight for teams with few recent matches), exactly as in 07_blend_predict.py.
 Home advantage uses each fixture's real `neutral` flag — so only the 8 host-at-
 home games (USA/Canada/Mexico in their own country) get the home bump; the other
-62 neutral-venue games get none. Output: data/predictions.csv.
+62 neutral-venue games get none.
+
+Output: data/fixture_predictions.csv — per-fixture W/D/L with NO team-news
+overlay. The news-adjusted final output is data/predictions.csv, written by
+09_team_news.py.
 """
 import numpy as np
 import pandas as pd
@@ -92,7 +96,7 @@ out = fx[["date", "home_team", "away_team", "neutral"]].copy()
 out["p_home"], out["p_draw"], out["p_away"] = P[:, 2], P[:, 1], P[:, 0]
 out["pick"] = np.where(P.argmax(1) == 2, "HOME", np.where(P.argmax(1) == 1, "DRAW", "AWAY"))
 out = out.sort_values("date")
-out.to_csv("data/predictions.csv", index=False)
+out.to_csv("data/fixture_predictions.csv", index=False)
 
 pd.set_option("display.width", 200)
 print(f"Final predictions for {len(out)} WC 2026 fixtures  "
@@ -101,5 +105,5 @@ print(f"{'Match':<38}{'Home%':>7}{'Draw%':>7}{'Away%':>7}  pick")
 for r in out.itertuples():
     print(f"{r.home_team + ' v ' + r.away_team:<38}"
           f"{r.p_home*100:>6.0f}{r.p_draw*100:>7.0f}{r.p_away*100:>7.0f}  {r.pick}")
-print("\nsaved -> data/predictions.csv")
+print("\nsaved -> data/fixture_predictions.csv")
 print(f"mean P [home,draw,away] = {P[:, [2,1,0]].mean(0).round(3)}")

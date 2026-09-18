@@ -16,13 +16,19 @@ is untouched; this only adjusts each team's strength INPUT for the 2026 fixtures
         delta = MAX_SWING * news_score        (negative news lowers the rating, positive raises it)
   3. The adjusted ratings feed the EXISTING calibrated Step-3 ensemble. No retraining.
 
-Output: data/predictions.csv with news_score, sentiment, key_out/back, applied Elo delta
-and notes per team, PLUS both pre- and post-adjustment probabilities.
+Output columns: news_score, sentiment, key_out/back, applied Elo delta and notes
+per team, PLUS both pre- and post-adjustment probabilities.
+
+WHERE IT WRITES (deliberate — an offline run must never clobber the real output):
+  --live  -> data/predictions.csv          the committed, news-adjusted final output
+  offline -> data/predictions_offline.csv  cache-only dry run, safe to throw away
+Offline, any team missing from the cache defaults to neutral (0, no swing), so an
+offline run is mostly a no-op overlay and is NOT a substitute for the live one.
 
 Run:
-  PYTHONPATH=src python src/08_team_news.py            # use cached news (no API calls)
-  PYTHONPATH=src python src/08_team_news.py --live     # agent covers every uncached (team,date)
-  PYTHONPATH=src python src/08_team_news.py --live --refresh   # re-fetch EVERY team (ignore cache)
+  python src/09_team_news.py                    # cached dry run -> predictions_offline.csv
+  python src/09_team_news.py --live             # agent covers every uncached (team,date)
+  python src/09_team_news.py --live --refresh   # re-fetch EVERY team (ignore cache)
 A LaunchAgent (scripts/refresh_team_news.sh) runs `--live --refresh` every 2 days.
 """
 import json
@@ -49,6 +55,8 @@ W, TEMP = 0.3, 0.95           # Step-3 ensemble winners (unchanged)
 N, START, HOME_ADV = 5, 1500.0, 60.0
 RECENT_CUTOFF = pd.Timestamp("2022-06-01")
 NEWS_CACHE = "data/team_news.json"
+OUT_LIVE = "data/predictions.csv"           # real output: only a --live run may write here
+OUT_OFFLINE = "data/predictions_offline.csv"  # cache-only dry run
 MODEL = "claude-opus-4-8"
 
 # ============================================================================
@@ -188,7 +196,7 @@ def get_news(team, match_date, cache, client, refresh=False):
 
 
 # ============================================================================
-# 2. CURRENT STRENGTH  (replay + FIFA blend — identical recipe to 08_predict_final)
+# 2. CURRENT STRENGTH  (replay + FIFA blend — identical recipe to 08_fixture_predictions)
 # ============================================================================
 def build_strength_and_form():
     df = pd.read_csv("data/raw/results.csv", parse_dates=["date"])
@@ -262,7 +270,12 @@ def main():
             print(f"[live] team-news agent enabled — covering EVERY team "
                   f"(model {MODEL} + web_search){', full refresh' if refresh else ''}\n")
         except Exception as e:
-            print(f"[live] could not init Anthropic client ({e}); using cache only\n")
+            print(f"[live] could not init Anthropic client ({e}); falling back to a "
+                  f"cache-only dry run\n")
+
+    # A --live run that could not reach the API is a dry run, not a live one: demote
+    # it so it writes to the offline file instead of clobbering data/predictions.csv.
+    live = live and client is not None
 
     cache = load_cache()
     strength, form, future = build_strength_and_form()
@@ -321,7 +334,14 @@ def main():
     out["p_home_post"], out["p_draw_post"], out["p_away_post"] = P_post[:, 2], P_post[:, 1], P_post[:, 0]
     out["pick_pre"], out["pick_post"] = pick(P_pre), pick(P_post)
     out["max_swing"] = np.abs(P_post - P_pre).max(axis=1)
-    out.to_csv("data/predictions.csv", index=False)
+
+    # Offline runs write to a separate file so a cache-only dry run can never
+    # overwrite the committed, news-adjusted data/predictions.csv.
+    out_path = OUT_LIVE if live else OUT_OFFLINE
+    out.to_csv(out_path, index=False)
+    if not live:
+        print(f"[offline] cache-only dry run -> {out_path}  "
+              f"({OUT_LIVE} left untouched; re-run with --live to update it)\n")
 
     # ---- coverage report (every team) ----
     all_teams = sorted(set(home_t) | set(away_t))
@@ -359,7 +379,7 @@ def main():
     if not big.empty:
         print(f"⚠  {len(big)} fixture(s) swung > {SWING_FLAG*100:.0f} pts — "
               f"if those look too strong, lower MAX_SWING (currently {MAX_SWING:.0f}).")
-    print("saved -> data/predictions.csv  (signed news_score, Elo delta, notes + pre/post probs per team)")
+    print(f"saved -> {out_path}  (signed news_score, Elo delta, notes + pre/post probs per team)")
 
 
 if __name__ == "__main__":
