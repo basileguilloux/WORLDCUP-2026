@@ -48,7 +48,13 @@ that predicts the 3-way label directly.
 
 - `data/raw/` — inputs: `results.csv` (~49k historical matches; played rows have scores, future fixtures have NA), `fifa_ranking_2026-06-11.csv`, `goalscorers.csv`, `shootouts.csv`, `former_names.csv` (old→current country names).
 - `data/` — derived artifacts: `processed_matches.csv`, `features.csv`, `poisson_model.joblib`.
-- `src/` — numbered pipeline (run in order from the project root):
+- **Outputs — one file per writer** (they used to collide on `predictions.csv`; do not re-merge them):
+  - `data/power_rankings.csv` — per **team**, from `07_blend_predict.py`.
+  - `data/fixture_predictions.csv` — per **fixture**, Step-3 ensemble, no overlay, from `08_fixture_predictions.py`.
+  - `data/predictions.csv` — per **fixture**, news-adjusted. **Headline output**, committed. Only a `--live` run of `09_team_news.py` writes it.
+  - `data/predictions_offline.csv` — throwaway cache-only dry run (gitignored).
+  - `data/tournament_sim.csv` — per **team**, knockout-round probabilities, from `10_tournament_sim.py`.
+- `src/` — numbered pipeline (run in order from the project root). Number-prefixed = runnable stage; unprefixed (`harness.py`, `step2_dixoncoles.py`, `step3_classifier.py`, `eval_baseline.py`) = **imported module**, and must stay unprefixed because `import 08_foo` is a Python syntax error:
   - `01_load_clean.py` — load raw results, reconcile former country names, split played vs. future.
   - `02_elo.py` — pre-match Elo ratings (start 1500, home advantage 60).
   - `03_elo_baseline.py` — Elo-only baseline.
@@ -56,18 +62,21 @@ that predicts the 3-way label directly.
   - `05_model.py` — stacked **PoissonRegressor** (one row per attacking side) → expected goals → score grid → W/D/L. Saves `poisson_model.joblib`.
   - `06_simulate.py` — replay played matches for current Elo/form, predict upcoming fixtures (host bonus), rank teams.
   - `07_blend_predict.py` — blend the FIFA ranking snapshot in as a **prior** for current strength (trust Elo for data-rich teams, FIFA for data-poor), then re-predict.
-  - `08_predict_final.py` — per-fixture predictions using the Step-3 ensemble + FIFA-blended strength (no overlay). Writes `data/predictions.csv`. Run with `PYTHONPATH=src`.
-  - `08_team_news.py` — **TEAM-NEWS OVERLAY** (current `predictions.csv` writer). Transparent, two-sided, prediction-time adjustment; does NOT retrain or add a trained feature. A Claude agent (`claude-opus-4-8` + `web_search`) covers EVERY team and returns per-team JSON `{news_score -1..+1, sentiment, key_players_out, key_players_back, notes}` (signed: negative = injuries/suspensions/off-field turmoil/poor prep; positive = key players back/strong form/good prep), cached in `data/team_news.json`. `delta = MAX_SWING * news_score` Elo is added to that team's strength INPUT (signed), fed through the unchanged Step-3 ensemble. Output: signed news_score/sentiment/key_out/key_back/Elo-delta/notes + BOTH pre- and post-adjustment probs, plus a coverage report (X/48 teams). `PYTHONPATH=src python src/08_team_news.py [--live] [--refresh]` — `--live` needs `anthropic` (installed in venv) + `ANTHROPIC_API_KEY`; offline uses cache, missing → neutral (0, no swing). Knobs: `MAX_SWING` (default **120 Elo**, deliberately > the 60 home-advantage so news is influential), `SWING_FLAG` (0.15). Legacy `availability_score` cache entries auto-convert to `news_score = availability_score − 1`.
-- **Scheduled refresh:** `scripts/refresh_team_news.sh` + LaunchAgent `~/Library/LaunchAgents/com.worldcup2026.teamnews.plist` run `08_team_news.py --live --refresh` **every 2 days** (`StartInterval 172800`). It is gated on `~/.worldcup2026.env` (`export ANTHROPIC_API_KEY=...`) — without that file it logs a SKIP and makes zero API calls. Logs: `data/team_news_refresh.log`. Disable: `launchctl bootout gui/$(id -u)/com.worldcup2026.teamnews`.
+  - `08_fixture_predictions.py` — per-fixture predictions using the Step-3 ensemble + FIFA-blended strength (no overlay). Writes `data/fixture_predictions.csv`.
+  - `09_team_news.py` — **TEAM-NEWS OVERLAY** (the only `predictions.csv` writer). Transparent, two-sided, prediction-time adjustment; does NOT retrain or add a trained feature. A Claude agent (`claude-opus-4-8` + `web_search`) covers EVERY team and returns per-team JSON `{news_score -1..+1, sentiment, key_players_out, key_players_back, notes}` (signed: negative = injuries/suspensions/off-field turmoil/poor prep; positive = key players back/strong form/good prep), cached in `data/team_news.json`. `delta = MAX_SWING * news_score` Elo is added to that team's strength INPUT (signed), fed through the unchanged Step-3 ensemble. Output: signed news_score/sentiment/key_out/key_back/Elo-delta/notes + BOTH pre- and post-adjustment probs, plus a coverage report (X/48 teams). `python src/09_team_news.py [--live] [--refresh]` — `--live` needs `anthropic` (installed in venv) + `ANTHROPIC_API_KEY`; offline uses cache, missing → neutral (0, no swing). **Write target depends on the mode:** `--live` → `data/predictions.csv`; offline (or a `--live` run whose client fails to init) → `data/predictions_offline.csv`, so a dry run can never clobber the real output. Knobs: `MAX_SWING` (default **120 Elo**, deliberately > the 60 home-advantage so news is influential), `SWING_FLAG` (0.15). Legacy `availability_score` cache entries auto-convert to `news_score = availability_score − 1`.
+  - `10_tournament_sim.py` — full-tournament Monte Carlo (default 20k runs) → `data/tournament_sim.csv`. **Refits the ensemble in-process from `features.csv`; reads no prediction CSV**, so it ignores the team-news overlay. Groups inferred from the fixture list; knockout seeding is an approximation of the official bracket. `python src/10_tournament_sim.py [N_SIMS]`.
+- **Entry point:** `python run_pipeline.py` runs stages 1-8 + 10 and **never touches `data/predictions.csv`**. `--news` adds stage 9 (`--live --refresh`); it reads `~/.worldcup2026.env` only when `--news` is passed and exits 1 if `ANTHROPIC_API_KEY` is missing. `--skip-news` is an explicit no-op.
+- **Tests:** `pytest` (`tests/test_outputs.py`) smoke-tests the four output schemas. Dev deps in `requirements-dev.txt`, kept out of `requirements.txt`. No CI yet.
+- **Scheduled refresh:** `scripts/refresh_team_news.sh` + LaunchAgent `~/Library/LaunchAgents/com.worldcup2026.teamnews.plist` run `09_team_news.py --live --refresh` **every 2 days** (`StartInterval 172800`). The script derives its repo root from its own location (no hardcoded path), uses `set -euo pipefail`, and fails loudly if the checkout is broken. The plist invokes `/bin/bash` so the shebang is honoured; sanitized template at `scripts/worldcup-news.plist.example`. It is gated on `~/.worldcup2026.env` (`export ANTHROPIC_API_KEY=...`) — without that file it logs a SKIP and makes zero API calls. Logs: `data/team_news_refresh.log`. Disable: `launchctl bootout gui/$(id -u)/com.worldcup2026.teamnews`.
 - `src/harness.py` — reusable vectorised **walk-forward** evaluator for the 3-way target; supports the Dixon-Coles `rho` correction. Import `walk_forward`.
 - `src/step2_dixoncoles.py` — sweeps `rho` on the harness, keeps the value minimising held-out log-loss.
-- `src/step3_classifier.py` — direct 3-way classifier (multinomial logistic / HGB) + Poisson ensemble + temperature calibration; the current best model. Reuses `harness` for apples-to-apples eval. Run with `PYTHONPATH=src`.
+- `src/step3_classifier.py` — direct 3-way classifier (multinomial logistic / HGB) + Poisson ensemble + temperature calibration; the current best model, imported by stages 08/09/10. Reuses `harness` for apples-to-apples eval.
 - `src/eval_baseline.py` — reproduces the `05_model` split and reports all three 3-class metrics (the number to beat).
 
 ## Conventions
 
 - Run scripts **from the project root** — paths like `data/raw/...` are relative to it.
-- Python via the local `.venv`.
+- Python via the local `.venv`. Stages import sibling modules from `src/`, which works because Python puts a script's own directory on `sys.path`; `PYTHONPATH=src` is no longer needed.
 - Label order is fixed everywhere: `0=away, 1=draw, 2=home`. Keep it consistent across training, eval, and output.
 - Host nations: `{"United States", "Mexico", "Canada"}`.
 
