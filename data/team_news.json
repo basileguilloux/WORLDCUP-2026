@@ -1,0 +1,66 @@
+{
+  "2026-06-13|Brazil": {
+    "team": "Brazil",
+    "news_score": -0.35,
+    "sentiment": "negative",
+    "key_players_out": 3,
+    "key_players_back": 0,
+    "notes": "Rodrygo and first-choice CB Eder Militao lost to injury; Neymar doubtful for the opener with a calf issue. Vini Jr, Raphinha, Marquinhos, Martinelli still available — weakened but not crippled."
+  },
+  "2026-06-14|Germany": {
+    "team": "Germany",
+    "news_score": -0.18,
+    "sentiment": "negative",
+    "key_players_out": 1,
+    "key_players_back": 0,
+    "notes": "Jamal Musiala a fitness/form doubt after a long layoff; first-choice keeper Manuel Neuer missed pre-tournament friendlies with a calf issue. Lennart Karl (fringe) ruled out and replaced. Core spine largely intact."
+  },
+  "2026-06-14|Netherlands": {
+    "team": "Netherlands",
+    "news_score": -0.55,
+    "sentiment": "negative",
+    "key_players_out": 3,
+    "key_players_back": 0,
+    "notes": "Major blow: Jurrien Timber out (groin), Xavi Simons out (ACL ~47 days pre-tournament) and Matthijs de Ligt left out injured — three important players across defence and attacking midfield."
+  },
+  "2026-06-15|Belgium": {
+    "team": "Belgium",
+    "news_score": -0.4,
+    "sentiment": "negative",
+    "key_players_out": 2,
+    "key_players_back": 0,
+    "notes": "Talisman Kevin De Bruyne arrives short of fitness after a four-month muscle injury at Napoli; main striker Romelu Lukaku also carrying a hip issue with ~7 club games this season. Courtois fit; the two key attackers are below peak."
+  },
+  "2026-06-15|Spain": {
+    "team": "Spain",
+    "news_score": 0.35,
+    "sentiment": "positive",
+    "key_players_out": 0,
+    "key_players_back": 0,
+    "notes": "Reigning European champions in excellent form and widely rated the team to beat, with the deepest Spanish talent pool in over a decade. Only minor cloud: Nico Williams a slight doubt for the opener. Settled, confident, full-strength."
+  },
+  "2026-06-16|France": {
+    "team": "France",
+    "news_score": -0.1,
+    "sentiment": "neutral",
+    "key_players_out": 1,
+    "key_players_back": 0,
+    "notes": "Mbappe named and expected to captain despite a thigh knock — slight doubt only. Squad otherwise very deep (Dembele the reigning Ballon d'Or winner, Olise, Thuram). Net effect small."
+  },
+  "2026-06-16|Argentina": {
+    "team": "Argentina",
+    "news_score": -0.15,
+    "sentiment": "negative",
+    "key_players_out": 1,
+    "key_players_back": 0,
+    "notes": "First-choice left-back Nicolas Tagliafico a doubt with a calf knock; Messi carrying a minor hamstring issue but expected to start the opener. Balerdi (depth) replaced by Senesi. Champions' core otherwise intact."
+  },
+  "2026-06-17|Portugal": {
+    "team": "Portugal",
+    "news_score": 0.12,
+    "sentiment": "positive",
+    "key_players_out": 0,
+    "key_players_back": 1,
+    "notes": "Cristiano Ronaldo recovered from the hamstring strain that cost him the March friendlies and is back fit, expected to start and captain. Settled squad under Martinez. Mild positive from the talisman returning."
+  }
+}

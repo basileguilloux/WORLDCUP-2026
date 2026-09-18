@@ -56,7 +56,9 @@ that predicts the 3-way label directly.
   - `05_model.py` — stacked **PoissonRegressor** (one row per attacking side) → expected goals → score grid → W/D/L. Saves `poisson_model.joblib`.
   - `06_simulate.py` — replay played matches for current Elo/form, predict upcoming fixtures (host bonus), rank teams.
   - `07_blend_predict.py` — blend the FIFA ranking snapshot in as a **prior** for current strength (trust Elo for data-rich teams, FIFA for data-poor), then re-predict.
-  - `08_predict_final.py` — **FINAL** per-fixture predictions using the Step-3 ensemble + FIFA-blended strength. Writes `data/predictions.csv` (date, teams, p_home/p_draw/p_away, pick). Run with `PYTHONPATH=src`.
+  - `08_predict_final.py` — per-fixture predictions using the Step-3 ensemble + FIFA-blended strength (no overlay). Writes `data/predictions.csv`. Run with `PYTHONPATH=src`.
+  - `08_team_news.py` — **TEAM-NEWS OVERLAY** (current `predictions.csv` writer). Transparent, two-sided, prediction-time adjustment; does NOT retrain or add a trained feature. A Claude agent (`claude-opus-4-8` + `web_search`) covers EVERY team and returns per-team JSON `{news_score -1..+1, sentiment, key_players_out, key_players_back, notes}` (signed: negative = injuries/suspensions/off-field turmoil/poor prep; positive = key players back/strong form/good prep), cached in `data/team_news.json`. `delta = MAX_SWING * news_score` Elo is added to that team's strength INPUT (signed), fed through the unchanged Step-3 ensemble. Output: signed news_score/sentiment/key_out/key_back/Elo-delta/notes + BOTH pre- and post-adjustment probs, plus a coverage report (X/48 teams). `PYTHONPATH=src python src/08_team_news.py [--live] [--refresh]` — `--live` needs `anthropic` (installed in venv) + `ANTHROPIC_API_KEY`; offline uses cache, missing → neutral (0, no swing). Knobs: `MAX_SWING` (default **120 Elo**, deliberately > the 60 home-advantage so news is influential), `SWING_FLAG` (0.15). Legacy `availability_score` cache entries auto-convert to `news_score = availability_score − 1`.
+- **Scheduled refresh:** `scripts/refresh_team_news.sh` + LaunchAgent `~/Library/LaunchAgents/com.worldcup2026.teamnews.plist` run `08_team_news.py --live --refresh` **every 2 days** (`StartInterval 172800`). It is gated on `~/.worldcup2026.env` (`export ANTHROPIC_API_KEY=...`) — without that file it logs a SKIP and makes zero API calls. Logs: `data/team_news_refresh.log`. Disable: `launchctl bootout gui/$(id -u)/com.worldcup2026.teamnews`.
 - `src/harness.py` — reusable vectorised **walk-forward** evaluator for the 3-way target; supports the Dixon-Coles `rho` correction. Import `walk_forward`.
 - `src/step2_dixoncoles.py` — sweeps `rho` on the harness, keeps the value minimising held-out log-loss.
 - `src/step3_classifier.py` — direct 3-way classifier (multinomial logistic / HGB) + Poisson ensemble + temperature calibration; the current best model. Reuses `harness` for apples-to-apples eval. Run with `PYTHONPATH=src`.
@@ -68,3 +70,10 @@ that predicts the 3-way label directly.
 - Python via the local `.venv`.
 - Label order is fixed everywhere: `0=away, 1=draw, 2=home`. Keep it consistent across training, eval, and output.
 - Host nations: `{"United States", "Mexico", "Canada"}`.
+
+## Session summary — 2026-06-13 12:11
+
+- **Project:** FIFA World Cup 2026 result prediction — 3-way classifier (home/draw/away) for ~70 unplayed fixtures; current best model is 0.9024 walk-forward log-loss (ensemble: 30% Dixon-Coles Poisson + 70% multinomial logistic with temperature calibration).
+- **Session activity:** Administrative only — user verified account (b.guilloux@dental-monitoring.com) and learned how to navigate past conversations via `/resume` or `claude --resume` from terminal.
+- **Current state:** Only one transcript saved for this project folder so far (this session). No model work or code changes in this conversation.
+- **Next:** User can explore past work by resuming previous sessions with `/resume` or check other project folders if conversations were started elsewhere.
