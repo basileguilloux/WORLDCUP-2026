@@ -114,15 +114,35 @@ England then beat France 6-4 in the third-place playoff on July 18. Those were a
 
 ## The frozen forecast
 
-**The frozen forecast is the `p_home_pre` / `p_draw_pre` / `p_away_pre` columns of `data/predictions.csv`.** Those are the model's own output, with no team-news adjustment. They were produced by the model as committed in **`32ffb4c`, dated 13 June 2026 12:09 +02:00**, and reproduced **bit-for-bit** by the later run committed in `7b9ad72` on 18 September (max difference 1.11e-16 across all 70 fixtures). The file must not be regenerated.
+**The frozen forecast is the `p_home_pre` / `p_draw_pre` / `p_away_pre` columns of `data/predictions.csv`.** Those are the model's own output, with no team-news adjustment. They were produced by the model as committed in **`32ffb4c`, whose author date is 13 June 2026 12:09 +02:00**, and reproduced **bit-for-bit** by the later run committed in `7b9ad72` on 18 September (max difference 1.11e-16 across all 70 fixtures). That date is author-set metadata with no independent corroboration — see [What the 13 June date actually rests on](#what-the-13-june-date-actually-rests-on). The file must not be regenerated.
 
 Provenance is checked in CI-able form by `tests/test_frozen_forecast.py`, which fails if those columns ever drift from `32ffb4c`.
 
-What supports the claim that this predates the tournament:
+### What the 13 June date actually rests on
 
-- `data/raw/results.csv`, `features.csv`, `processed_matches.csv`, `poisson_model.joblib` and the FIFA ranking snapshot each have **exactly one commit**, on 13 June 2026, and their bytes are unchanged since.
-- `step3_classifier.py`, `harness.py`, `05_model.py`, `04_features.py` and `02_elo.py` likewise have **one commit each, on 13 June**. `git diff 32ffb4c HEAD` across them is empty. The only later change to the prediction stage is its output filename.
-- Re-running the pipeline today reproduces the 13 June numbers to 1.11e-16.
+**There is no independent timestamp for 13 June.** The date rests on git metadata written on the author's own machine, and nothing else. This is stated up front because everything below is weaker than it first looks.
+
+The commit that carries the forecast was **never pushed to GitHub until 18 September**. GitHub's server-side record shows:
+
+- `32ffb4c` — present on the remote with a **commit date of 2026-09-18T13:41:00Z**.
+- `f296b05` — the original, pre-rebase version of that commit — **"No commit found for SHA"**. GitHub has never seen it.
+
+The repository itself was created on GitHub at **2026-06-13T09:15:41Z**, which is before the 13 June commit, so the repo's own age is independently attested. That attests the repo, not the forecast: no server ever observed the forecast commit until 18 September, 90 days later.
+
+What remains is local evidence, all of it produced on the same machine and all of it forgeable by someone who wanted to:
+
+- The **author date** of `32ffb4c` (13 June 2026 12:09:22 +02:00). Author dates are plain metadata and can be set to any value.
+- The pre-rebase original `f296b05`, still in the local object store, whose **committer date matches its author date** (both 13 June 12:09:22) — so the timestamps were not merely author-overridden at commit time. Its `data/predictions.csv` blob is byte-identical (`968de0ba…`) to the one in `32ffb4c`.
+- The local **reflog** entry `f296b05 HEAD@{2026-06-13 12:09:22 +0200}: commit: final ensemble…`. Reflog timestamps are written by git at the moment of the operation rather than taken from the commit, so they are not author-set — but they are local-only, never pushed, and can be edited.
+
+Genuinely independent of dates, and worth more than any of the above:
+
+- Every input — `data/raw/results.csv`, `features.csv`, `processed_matches.csv`, `poisson_model.joblib`, the FIFA snapshot — has **exactly one commit** and **unchanged bytes** since.
+- `step3_classifier.py`, `harness.py`, `05_model.py`, `04_features.py`, `02_elo.py` likewise; `git diff 32ffb4c HEAD` across them is empty.
+- Re-running the pipeline today reproduces the numbers to 1.11e-16.
+- `results.csv` contains **no tournament result after 11 June**. A forecast produced later using this repo's data could not have known any of the outcomes it predicts, whatever date sits on the commit.
+
+That last point is the real guarantee. The dating is corroborated but not proven; the *information content* of the inputs is verifiable regardless.
 
 ### Leakage caveats
 
@@ -135,7 +155,16 @@ These are stated plainly rather than argued away.
 
    Their results are *not* in `results.csv` (both rows are scoreless), so they did not enter the model. But the forecast for them was committed after they were played and cannot be called a prediction. **Treat these two as out of sample and exclude them from any scoring.** The four fixtures dated 13 June kicked off after the commit: 10:09 UTC is 06:09 in East Rutherford and Foxborough and 03:09 in Santa Clara and Vancouver, hours before any plausible kickoff — though the fixture data carries dates only, not kickoff times, so this rests on venue local time rather than on the data.
 3. **The tournament simulator was written in September, after the tournament finished.** `10_tournament_sim.py` does not read any prediction file — it refits the ensemble in-process — so it inherits no news annotation. But its design choices (bracket seeding approximation, draw resolution) were made by someone who already knew the outcome. The "How the real tournament went" comparison above should be read with that in mind.
-4. **Git commit dates are author-set metadata.** They are evidence, not proof: an author date can be set to any value. Two independent things corroborate the 13 June date here — the committed input files are byte-identical to that commit, and the model reproduces its output exactly — but neither rules out a backdated commit. Note also that `32ffb4c`'s *committer* date is 18 September, because the branch was rebased; that reflects the rebase, not the original authorship.
+4. **Git commit dates are author-set metadata — evidence, not proof.** See the section above: no server-side timestamp attests the 13 June date, because the commit reached GitHub only on 18 September. A backdated commit cannot be ruled out from the repository alone.
+
+   `32ffb4c`'s *committer* date is 18 September because it was replayed by a rebase, which the local reflog records directly:
+
+   ```
+   eaddeb6 HEAD@{2026-09-18 15:41:00 +0200}: rebase (start): checkout WORLDCUP-2026/main
+   32ffb4c HEAD@{2026-09-18 15:41:00 +0200}: rebase (pick): final ensemble: multinomial logistic regression and poisson
+   ```
+
+   The pre-rebase original `f296b05` still exists locally with both dates at 13 June and an identical `predictions.csv` blob, which is what makes the rebase — rather than a later edit — the explanation for the committer date.
 
 ### The post-news columns are an annotation, not the forecast
 
