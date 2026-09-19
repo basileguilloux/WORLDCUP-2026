@@ -20,15 +20,15 @@ Output columns: news_score, sentiment, key_out/back, applied Elo delta and notes
 per team, PLUS both pre- and post-adjustment probabilities.
 
 WHERE IT WRITES (deliberate — an offline run must never clobber the real output):
-  --live  -> data/predictions.csv          the FROZEN pre-tournament forecast
+  --live  -> data/predictions.csv          the FROZEN forecast (gated)
   offline -> data/predictions_offline.csv  cache-only dry run, safe to throw away
 Offline, any team missing from the cache defaults to neutral (0, no swing), so an
 offline run is mostly a no-op overlay and is NOT a substitute for the live one.
 
-data/predictions.csv IS FROZEN. The 2026 tournament is over and the README scores
-that forecast against the real results, so a refresh would leak post-tournament
-news into a file whose entire value is that it predates the event. --live
-therefore refuses to run without the explicit --overwrite-frozen flag.
+data/predictions.csv IS FROZEN. Its p_*_pre columns are the forecast, bit-identical
+to the model run committed in 32ffb4c on 13 June 2026; the p_*_post columns are this
+overlay, added 18 September. Regenerating the file would destroy that provenance, so
+--live refuses to run without the explicit --overwrite-frozen flag.
 
 FAILURE HANDLING (a run either writes a real forecast or fails loudly):
   * --live makes a minimal preflight call first; bad credentials exit non-zero
@@ -81,13 +81,13 @@ MODEL = "claude-opus-4-8"
 # it is treated as a failed run rather than written out.
 MAX_DEGRADED_FRACTION = 0.25
 
-# data/predictions.csv is the FROZEN pre-tournament forecast (see README). The
-# 2026 tournament is over, so refreshing it would leak post-tournament news into
-# a file whose whole value is that it was written before a ball was kicked.
+# data/predictions.csv is the FROZEN forecast (see README). Its p_*_pre columns
+# are bit-identical to the model run committed in 32ffb4c on 13 June 2026, and
+# regenerating the file would destroy that provenance.
 FROZEN_MSG = (
-    "data/predictions.csv is the FROZEN pre-tournament forecast and must not be "
-    "refreshed: the 2026 tournament is over, so a new run would leak "
-    "post-tournament news into a file whose value is that it predates the event.\n"
+    "data/predictions.csv is the FROZEN forecast and must not be refreshed: its "
+    "p_*_pre columns are bit-identical to the model run committed in 32ffb4c on "
+    "13 June 2026, and regenerating the file would destroy that provenance.\n"
     "If you genuinely intend to overwrite it, re-run with --overwrite-frozen."
 )
 
@@ -464,8 +464,7 @@ def main(argv=None):
     out.to_csv(out_path, index=False)
     if not live:
         print(f"[offline] cache-only dry run -> {out_path}  "
-              f"({OUT_LIVE} is the frozen pre-tournament forecast and was left "
-              f"untouched)\n")
+              f"({OUT_LIVE} is the frozen forecast and was left untouched)\n")
 
     # ---- coverage report: REAL results only ----
     # "Covered" means a fresh, successful agent result in THIS run. Cached

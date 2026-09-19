@@ -13,7 +13,7 @@ python run_pipeline.py
 
 `run_pipeline.py` runs every step below from the repo root and writes `data/power_rankings.csv`, `data/fixture_predictions.csv` and `data/tournament_sim.csv`.
 
-**It does not touch `data/predictions.csv`.** That file is the **frozen pre-tournament forecast** (see below). `--news` is retired and exits 1 with an explanation; `--skip-news` is an explicit no-op.
+**It does not touch `data/predictions.csv`.** That file is the **frozen forecast** (see below). `--news` is retired and exits 1 with an explanation; `--skip-news` is an explicit no-op.
 
 Any step can also be run on its own from the repo root:
 
@@ -54,7 +54,7 @@ What each output is:
 
 - **`data/power_rankings.csv`** — one row per team: expected points across the remaining fixtures, Elo, FIFA-equivalent Elo and the blend weight. A standings-style view, not per-match probabilities.
 - **`data/fixture_predictions.csv`** — one row per fixture: `p_home` / `p_draw` / `p_away` from the Step-3 ensemble, with no team-news overlay.
-- **`data/predictions.csv`** — the same fixtures with the team-news overlay applied, carrying both pre- and post-adjustment probabilities plus the signed news score, Elo delta and notes per team. **This is the headline output, and it is frozen** — see [The frozen forecast](#the-frozen-forecast).
+- **`data/predictions.csv`** — the headline output, and **frozen**. Its `p_*_pre` columns are the forecast; its `p_*_post` columns are a later team-news annotation that is not scored. See [The frozen forecast](#the-frozen-forecast).
 - **`data/tournament_sim.csv`** — one row per team: probability of winning the group, qualifying, and reaching each knockout round through `champion`.
 
 ## Method
@@ -98,6 +98,8 @@ Top of the board across the 20,000 simulated tournaments.
 
 Four teams hold 62% of the title probability between them. The hosts trail well behind, Mexico at 2.5%, Canada at 0.6% and the USA at 0.1%. The USA lands in a tough Group B with Turkey, Paraguay and Australia and wins that group only 30% of the time. Full table in `data/tournament_sim.csv`.
 
+> **Caveat on two fixtures.** The simulator treats all 70 scoreless rows as unplayed, but two of them — Canada v Bosnia and Herzegovina and United States v Paraguay, both 12 June — had already kicked off before the forecast was committed. Their group-stage contribution to Canada's and the USA's numbers is therefore not a genuine prediction. See [Leakage caveats](#leakage-caveats).
+
 `10_tournament_sim.py` **refits the ensemble in-process from `data/features.csv` rather than reading `predictions.csv`** — it needs a probability for knockout pairings that do not exist in the fixture list, so no prediction CSV is an input to it. It therefore ignores the team-news overlay.
 
 The tournament simulation samples each match's outcome class from the calibrated ensemble, then samples a scoreline from the Dixon-Coles grid *conditional* on that class, which supplies the goal differences group tables need without disturbing outcome calibration. Knockout seeding is an approximation of the official bracket, which is not in the data: qualifiers are seeded 1-32 by group record into a standard 1v32 bracket, and a knockout draw at 90' is resolved by a strength-weighted coin flip.
@@ -112,19 +114,46 @@ England then beat France 6-4 in the third-place playoff on July 18. Those were a
 
 ## The frozen forecast
 
-`data/predictions.csv` is a **frozen pre-tournament forecast and must not be regenerated.** The 2026 tournament finished in July, and the section above scores this forecast against what actually happened — that comparison is only meaningful because the file predates the event.
+**The frozen forecast is the `p_home_pre` / `p_draw_pre` / `p_away_pre` columns of `data/predictions.csv`.** Those are the model's own output, with no team-news adjustment. They were produced by the model as committed in **`32ffb4c`, dated 13 June 2026 12:09 +02:00**, and reproduced **bit-for-bit** by the later run committed in `7b9ad72` on 18 September (max difference 1.11e-16 across all 70 fixtures). The file must not be regenerated.
 
-It was produced by the run committed on **18 September 2026** (`git log -- data/predictions.csv`). Although that date falls after the tournament, the forecast carries no knowledge of it: the model's inputs are `data/raw/results.csv`, where all 70 tournament fixtures are still scoreless rows, and a team-news cache whose entries are keyed to June 2026 match dates. Nothing downstream of the final whistle reaches it.
+Provenance is checked in CI-able form by `tests/test_frozen_forecast.py`, which fails if those columns ever drift from `32ffb4c`.
 
-Regenerating it would leak post-tournament news and hindsight into those inputs and quietly destroy the only property that makes it worth keeping. Three guards enforce this:
+What supports the claim that this predates the tournament:
+
+- `data/raw/results.csv`, `features.csv`, `processed_matches.csv`, `poisson_model.joblib` and the FIFA ranking snapshot each have **exactly one commit**, on 13 June 2026, and their bytes are unchanged since.
+- `step3_classifier.py`, `harness.py`, `05_model.py`, `04_features.py` and `02_elo.py` likewise have **one commit each, on 13 June**. `git diff 32ffb4c HEAD` across them is empty. The only later change to the prediction stage is its output filename.
+- Re-running the pipeline today reproduces the 13 June numbers to 1.11e-16.
+
+### Leakage caveats
+
+These are stated plainly rather than argued away.
+
+1. **Two tournament results are inside the Elo replay.** `results.csv` contains matchday 1 of 11 June — Mexico 2-0 South Africa and South Korea 2-1 Czech Republic — with scores. They feed each team's current Elo. This is real in-tournament information, though it predates every fixture being forecast.
+2. **Two forecast fixtures had already kicked off when the forecast was committed.** The commit is 13 June 10:09 UTC. These were played on 12 June:
+   - Canada v Bosnia and Herzegovina (Toronto)
+   - United States v Paraguay (Inglewood)
+
+   Their results are *not* in `results.csv` (both rows are scoreless), so they did not enter the model. But the forecast for them was committed after they were played and cannot be called a prediction. **Treat these two as out of sample and exclude them from any scoring.** The four fixtures dated 13 June kicked off after the commit: 10:09 UTC is 06:09 in East Rutherford and Foxborough and 03:09 in Santa Clara and Vancouver, hours before any plausible kickoff — though the fixture data carries dates only, not kickoff times, so this rests on venue local time rather than on the data.
+3. **The tournament simulator was written in September, after the tournament finished.** `10_tournament_sim.py` does not read any prediction file — it refits the ensemble in-process — so it inherits no news annotation. But its design choices (bracket seeding approximation, draw resolution) were made by someone who already knew the outcome. The "How the real tournament went" comparison above should be read with that in mind.
+4. **Git commit dates are author-set metadata.** They are evidence, not proof: an author date can be set to any value. Two independent things corroborate the 13 June date here — the committed input files are byte-identical to that commit, and the model reproduces its output exactly — but neither rules out a backdated commit. Note also that `32ffb4c`'s *committer* date is 18 September, because the branch was rebased; that reflects the rebase, not the original authorship.
+
+### The post-news columns are an annotation, not the forecast
+
+`p_home_post` / `p_draw_post` / `p_away_post`, and the per-team `news_score`, `sentiment`, `key_out`, `key_back`, `elo_delta` and `notes` columns, are a **team-news annotation added on 18 September 2026**. They move 8 of the 70 fixtures, by up to 6.6 percentage points (largest: Netherlands v Japan, 34.2/32.9/32.9 → 28.1/32.4/39.5).
+
+`data/team_news.json` holds no fetch timestamp or source-date field, and has a single commit, on 18 September. **The retrieval date of that news cannot be established from the repository.** The agent was instructed to restrict itself to news published before each match date, and the notes read as pre-match, but that is an instruction to a model, not a verifiable constraint.
+
+**These columns are not used for evaluation anywhere.** Nothing in `src/` or `tests/` reads `data/predictions.csv`, and the tournament comparison above is scored from `data/tournament_sim.csv`, which is built without them. They are kept for audit, not for scoring.
+
+### Guards
 
 - `run_pipeline.py --news` exits 1 and refuses to run any step.
 - `09_team_news.py --live` exits 1 unless given an explicit `--overwrite-frozen`.
-- The scheduled LaunchAgent that refreshed it every 2 days was **unloaded and deleted on 19 September 2026**. `scripts/refresh_team_news.sh` and `scripts/worldcup-news.plist.example` are retained as documentation, both marked retired; the script now exits non-zero instead of skipping quietly, so any future scheduled use fails visibly.
+- The LaunchAgent that refreshed this every 2 days was **unloaded and deleted on 19 September 2026**. `scripts/refresh_team_news.sh` and `scripts/worldcup-news.plist.example` are retained as documentation, both marked retired; the script now exits non-zero instead of skipping quietly.
 
 ## Team-news adjustment
 
-This section documents **how the frozen forecast was produced**. It is not a step to re-run — see the guards above.
+This section documents **how the post-news annotation was produced**. It is not a step to re-run — see the guards above — and it is not part of the frozen forecast.
 
 `09_team_news.py` is a transparent, prediction-time overlay. It does not retrain the model and does not add a trained feature.
 
@@ -142,6 +171,6 @@ A run either produces a real forecast or fails loudly. `--live` makes a minimal 
 
 ## Status
 
-Complete and evaluated against baselines: data cleaning, Elo, feature engineering, the Poisson/Dixon-Coles model, the Step-3 ensemble, FIFA blending, per-fixture prediction, the team-news overlay and the tournament Monte Carlo — with a single entry point (`run_pipeline.py`), a pinned `requirements.txt`, smoke tests in `tests/`, and an MIT license. The forecast is frozen and the scheduled refresh is retired; the tournament has been played and the results are in.
+Complete and evaluated against baselines: data cleaning, Elo, feature engineering, the Poisson/Dixon-Coles model, the Step-3 ensemble, FIFA blending, per-fixture prediction, the team-news overlay and the tournament Monte Carlo — with a single entry point (`run_pipeline.py`), a pinned `requirements.txt`, smoke tests in `tests/`, and an MIT license. The forecast is frozen (its provenance is enforced by a test), the scheduled refresh is retired, and the tournament has been played. Leakage caveats are listed above rather than argued away.
 
 Not yet included: CI, and visualizations of the predictions. Known limitation: features are the bottleneck — `elo_diff` dominates, and further gains need richer data (squad/market value, rest and travel) rather than more model tuning.
