@@ -12,9 +12,9 @@ paths inside each script (e.g. "data/raw/results.csv") resolve correctly, and
 `from harness import ...` resolves correctly too (Python puts a script's own
 directory, src/, on sys.path when that script is the one being executed).
 
-THE TEAM-NEWS STEP IS RETIRED. data/predictions.csv is the frozen
-pre-tournament forecast that the README scores against the real 2026 results,
-so no run from here may rewrite it. --news is kept only to fail loudly and
+THE TEAM-NEWS STEP IS RETIRED. data/predictions.csv is the frozen forecast:
+its p_*_pre columns are bit-identical to the model run committed in 32ffb4c on
+13 June 2026, and no run from here may rewrite it. --news is kept only to fail loudly and
 explain why, pointing at the one deliberate override; the pipeline itself has
 no way to pass that override through.
 """
@@ -47,10 +47,9 @@ NEWS_STEP = ("09_team_news.py", "data/predictions.csv")
 
 FROZEN_REFUSAL = """ERROR: --news is retired and will not run.
 
-data/predictions.csv is the FROZEN pre-tournament forecast. The 2026 tournament
-finished in July and the README scores that forecast against the real results,
-so rewriting it would leak post-tournament news into a file whose entire value
-is that it predates the event.
+data/predictions.csv is the FROZEN forecast. Its p_*_pre columns are
+bit-identical to the model run committed in 32ffb4c on 13 June 2026, and the
+README documents that provenance. Rewriting the file would destroy it.
 
 There is deliberately no way to override this from run_pipeline.py. If you truly
 intend to discard the frozen forecast, run the one command that says so:
@@ -75,7 +74,7 @@ def main():
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--news", action="store_true",
                    help="RETIRED: exits 1 and explains why. data/predictions.csv is "
-                        "the frozen pre-tournament forecast.")
+                        "the frozen forecast.")
     g.add_argument("--skip-news", action="store_true",
                    help="explicitly skip the team-news step (this is the default).")
     opts = ap.parse_args()
@@ -91,14 +90,14 @@ def main():
     print("\n" + "=" * 70)
     print("SKIPPED 09_team_news.py (team-news overlay) — retired.")
     print("  data/predictions.csv was NOT touched: it is the frozen")
-    print("  pre-tournament forecast. See the README.")
+    print("  forecast. See the README.")
     print("=" * 70)
 
     print("\n" + "=" * 70)
     print("Pipeline complete. Outputs:")
     for out in [o for _, o in STEPS if o]:
         print(f"  {out}")
-    print("  data/predictions.csv        (unchanged — frozen pre-tournament forecast)")
+    print("  data/predictions.csv        (unchanged — frozen forecast)")
     print("=" * 70)
 
 
