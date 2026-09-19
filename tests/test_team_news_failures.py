@@ -154,3 +154,23 @@ def test_agent_gather_degrades_on_transient_error(tn, monkeypatch):
     rec, status = tn.agent_gather("Brazil", "2026-06-13", client)
     assert status == "fallback"
     assert rec["news_score"] == 0.0
+
+
+def test_run_pipeline_news_flag_is_retired(untouched):
+    """`run_pipeline.py --news` must refuse, exit non-zero, and run no steps."""
+    import subprocess
+
+    proc = subprocess.run([sys.executable, str(ROOT / "run_pipeline.py"), "--news"],
+                          cwd=ROOT, capture_output=True, text=True)
+    assert proc.returncode != 0
+    assert "frozen" in proc.stderr.lower()
+    assert "--overwrite-frozen" in proc.stderr, "must point at the deliberate override"
+    assert "RUNNING" not in proc.stdout, "must refuse before running any pipeline step"
+
+
+def test_run_pipeline_has_no_overwrite_frozen_passthrough():
+    """There must be no way to force the frozen overwrite from run_pipeline.py."""
+    src = (ROOT / "run_pipeline.py").read_text()
+    assert "--overwrite-frozen" in src, "the refusal message should name the override"
+    # ...but only inside the refusal text, never as an argument actually passed on.
+    assert 'run(NEWS_STEP[0]' not in src, "run_pipeline must not invoke the news step at all"

@@ -13,7 +13,7 @@ python run_pipeline.py
 
 `run_pipeline.py` runs every step below from the repo root and writes `data/power_rankings.csv`, `data/fixture_predictions.csv` and `data/tournament_sim.csv`.
 
-**It does not touch `data/predictions.csv`.** That file is the committed, news-adjusted final output, and refreshing it costs live API calls — see [Team-news adjustment](#team-news-adjustment). Pass `--news` to include that step, or `--skip-news` to be explicit about the default.
+**It does not touch `data/predictions.csv`.** That file is the **frozen pre-tournament forecast** (see below). `--news` is retired and exits 1 with an explanation; `--skip-news` is an explicit no-op.
 
 Any step can also be run on its own from the repo root:
 
@@ -54,7 +54,7 @@ What each output is:
 
 - **`data/power_rankings.csv`** — one row per team: expected points across the remaining fixtures, Elo, FIFA-equivalent Elo and the blend weight. A standings-style view, not per-match probabilities.
 - **`data/fixture_predictions.csv`** — one row per fixture: `p_home` / `p_draw` / `p_away` from the Step-3 ensemble, with no team-news overlay.
-- **`data/predictions.csv`** — the same fixtures with the team-news overlay applied, carrying both pre- and post-adjustment probabilities plus the signed news score, Elo delta and notes per team. **This is the headline output.**
+- **`data/predictions.csv`** — the same fixtures with the team-news overlay applied, carrying both pre- and post-adjustment probabilities plus the signed news score, Elo delta and notes per team. **This is the headline output, and it is frozen** — see [The frozen forecast](#the-frozen-forecast).
 - **`data/tournament_sim.csv`** — one row per team: probability of winning the group, qualifying, and reaching each knockout round through `champion`.
 
 ## Method
@@ -110,22 +110,31 @@ The simulation's top two teams by reach-final probability were Spain (33.3%) and
 
 England then beat France 6-4 in the third-place playoff on July 18. Those were also the model's #3 and #4 ranked teams by champion probability, so all four semifinalists it favored most landed in the right places.
 
+## The frozen forecast
+
+`data/predictions.csv` is a **frozen pre-tournament forecast and must not be regenerated.** The 2026 tournament finished in July, and the section above scores this forecast against what actually happened — that comparison is only meaningful because the file predates the event.
+
+It was produced by the run committed on **18 September 2026** (`git log -- data/predictions.csv`). Although that date falls after the tournament, the forecast carries no knowledge of it: the model's inputs are `data/raw/results.csv`, where all 70 tournament fixtures are still scoreless rows, and a team-news cache whose entries are keyed to June 2026 match dates. Nothing downstream of the final whistle reaches it.
+
+Regenerating it would leak post-tournament news and hindsight into those inputs and quietly destroy the only property that makes it worth keeping. Three guards enforce this:
+
+- `run_pipeline.py --news` exits 1 and refuses to run any step.
+- `09_team_news.py --live` exits 1 unless given an explicit `--overwrite-frozen`.
+- The scheduled LaunchAgent that refreshed it every 2 days was **unloaded and deleted on 19 September 2026**. `scripts/refresh_team_news.sh` and `scripts/worldcup-news.plist.example` are retained as documentation, both marked retired; the script now exits non-zero instead of skipping quietly, so any future scheduled use fails visibly.
+
 ## Team-news adjustment
 
-`09_team_news.py` is an **optional**, transparent, prediction-time overlay. It does not retrain the model and does not add a trained feature.
+This section documents **how the frozen forecast was produced**. It is not a step to re-run — see the guards above.
+
+`09_team_news.py` is a transparent, prediction-time overlay. It does not retrain the model and does not add a trained feature.
 
 A Claude agent with web search covers every team and returns a signed score per team, `news_score` in `[-1, +1]` — negative for injuries, suspensions, off-field turmoil or poor preparation; positive for key players returning, strong form or settled preparation. That becomes a signed Elo adjustment, `delta = MAX_SWING * news_score` (default `MAX_SWING = 120`, deliberately larger than the 60-point home advantage), applied to the team's strength **input** and fed through the unchanged Step-3 ensemble. Results are cached in `data/team_news.json` as an audit artifact.
 
-It needs `ANTHROPIC_API_KEY`, read from `~/.worldcup2026.env` (never committed):
+The live path needed `ANTHROPIC_API_KEY`, read from `~/.worldcup2026.env` (never committed). It is now gated behind `--overwrite-frozen` and should not be run.
 
-```bash
-echo 'export ANTHROPIC_API_KEY="sk-ant-..."' > ~/.worldcup2026.env
-python run_pipeline.py --news          # or: python src/09_team_news.py --live --refresh
-```
+Without `--live` the script is a **cache-only dry run**: it writes `data/predictions_offline.csv` and leaves the frozen file alone. Teams missing from the cache default to neutral, so a dry run is a near-no-op overlay, useful only for inspecting the mechanism.
 
-Without `--live` the script is a **cache-only dry run** and writes `data/predictions_offline.csv`, leaving `data/predictions.csv` alone — teams missing from the cache default to neutral, so an offline run is a near-no-op overlay and is not a substitute for a live one.
-
-`scripts/refresh_team_news.sh` runs the live refresh every 2 days via a LaunchAgent; see `scripts/worldcup-news.plist.example` for installation. Without the env file it logs a SKIP and makes zero API calls.
+A run either produces a real forecast or fails loudly. `--live` makes a minimal preflight call first, so bad credentials exit non-zero in seconds; authentication errors mid-run abort instead of degrading to neutral; only successful results are cached, so a failure can never poison `data/team_news.json`; and if more than `MAX_DEGRADED_FRACTION` (25%) of teams fell back to neutral, the run aborts rather than publish a flat overlay that looks like a forecast.
 
 ## Data
 
@@ -133,6 +142,6 @@ Without `--live` the script is a **cache-only dry run** and writes `data/predict
 
 ## Status
 
-Complete and evaluated against baselines: data cleaning, Elo, feature engineering, the Poisson/Dixon-Coles model, the Step-3 ensemble, FIFA blending, per-fixture prediction, the optional team-news overlay and the tournament Monte Carlo — with a single entry point (`run_pipeline.py`), a pinned `requirements.txt`, smoke tests in `tests/`, and an MIT license.
+Complete and evaluated against baselines: data cleaning, Elo, feature engineering, the Poisson/Dixon-Coles model, the Step-3 ensemble, FIFA blending, per-fixture prediction, the team-news overlay and the tournament Monte Carlo — with a single entry point (`run_pipeline.py`), a pinned `requirements.txt`, smoke tests in `tests/`, and an MIT license. The forecast is frozen and the scheduled refresh is retired; the tournament has been played and the results are in.
 
 Not yet included: CI, and visualizations of the predictions. Known limitation: features are the bottleneck — `elo_diff` dominates, and further gains need richer data (squad/market value, rest and travel) rather than more model tuning.

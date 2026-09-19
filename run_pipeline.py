@@ -4,30 +4,27 @@ Equivalent to running each script in src/ by hand (see README "Pipeline"
 section), but as one command from the repo root:
 
     python run_pipeline.py              # everything except the team-news step
-    python run_pipeline.py --news       # also refresh the team-news overlay
     python run_pipeline.py --skip-news  # explicit no-op; same as the default
+    python run_pipeline.py --news       # RETIRED: exits 1 and explains why
 
 Each step is run as its own process from the repo root, so the relative data
 paths inside each script (e.g. "data/raw/results.csv") resolve correctly, and
 `from harness import ...` resolves correctly too (Python puts a script's own
 directory, src/, on sys.path when that script is the one being executed).
 
-THE TEAM-NEWS STEP IS OPT-IN. 09_team_news.py is the only writer of the
-committed data/predictions.csv, and refreshing it costs live Anthropic API
-calls, so the default run never touches that file. Pass --news to include it;
-that requires ANTHROPIC_API_KEY (sourced from ~/.worldcup2026.env if present,
-which is only read when --news is passed) and fails loudly if it is missing.
+THE TEAM-NEWS STEP IS RETIRED. data/predictions.csv is the frozen
+pre-tournament forecast that the README scores against the real 2026 results,
+so no run from here may rewrite it. --news is kept only to fail loudly and
+explain why, pointing at the one deliberate override; the pipeline itself has
+no way to pass that override through.
 """
 import argparse
-import os
-import re
 import subprocess
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SRC = ROOT / "src"
-ENV_FILE = Path.home() / ".worldcup2026.env"
 
 # (script, what it writes) — None means it only prints / writes no CSV.
 STEPS = [
@@ -48,19 +45,19 @@ STEPS = [
 
 NEWS_STEP = ("09_team_news.py", "data/predictions.csv")
 
+FROZEN_REFUSAL = """ERROR: --news is retired and will not run.
 
-def load_key_from_env_file():
-    """Read ANTHROPIC_API_KEY out of ~/.worldcup2026.env. Only called with --news."""
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        return "environment"
-    if not ENV_FILE.exists():
-        return None
-    for line in ENV_FILE.read_text().splitlines():
-        m = re.match(r'\s*(?:export\s+)?ANTHROPIC_API_KEY\s*=\s*["\']?([^"\'\s]+)', line)
-        if m:
-            os.environ["ANTHROPIC_API_KEY"] = m.group(1)
-            return str(ENV_FILE)
-    return None
+data/predictions.csv is the FROZEN pre-tournament forecast. The 2026 tournament
+finished in July and the README scores that forecast against the real results,
+so rewriting it would leak post-tournament news into a file whose entire value
+is that it predates the event.
+
+There is deliberately no way to override this from run_pipeline.py. If you truly
+intend to discard the frozen forecast, run the one command that says so:
+
+    python src/09_team_news.py --live --overwrite-frozen
+
+Re-run without --news to run everything else."""
 
 
 def run(step, args=()):
@@ -77,42 +74,31 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     g = ap.add_mutually_exclusive_group()
     g.add_argument("--news", action="store_true",
-                   help="also run the team-news overlay (live API calls; rewrites "
-                        "data/predictions.csv). Requires ANTHROPIC_API_KEY.")
+                   help="RETIRED: exits 1 and explains why. data/predictions.csv is "
+                        "the frozen pre-tournament forecast.")
     g.add_argument("--skip-news", action="store_true",
                    help="explicitly skip the team-news step (this is the default).")
     opts = ap.parse_args()
 
+    # Refuse before running anything, so the failure costs nothing.
     if opts.news:
-        # Only read the env file when the user actually asked for the news step.
-        source = load_key_from_env_file()
-        if source is None:
-            print("ERROR: --news needs ANTHROPIC_API_KEY, which is not set.\n"
-                  f"       Export it, or put it in {ENV_FILE}:\n"
-                  '           export ANTHROPIC_API_KEY="sk-ant-..."\n'
-                  "       Re-run without --news to run everything else.", file=sys.stderr)
-            sys.exit(1)
-        print(f"[news] ANTHROPIC_API_KEY loaded from {source}")
+        print(FROZEN_REFUSAL, file=sys.stderr)
+        sys.exit(1)
 
     for step, _ in STEPS:
         run(step)
 
-    if opts.news:
-        run(NEWS_STEP[0], ["--live", "--refresh"])
-    else:
-        print("\n" + "=" * 70)
-        print("SKIPPED 09_team_news.py (team-news overlay).")
-        print("  data/predictions.csv was NOT touched — it keeps its committed,")
-        print("  news-adjusted contents. Pass --news to refresh it (needs an API key).")
-        print("=" * 70)
+    print("\n" + "=" * 70)
+    print("SKIPPED 09_team_news.py (team-news overlay) — retired.")
+    print("  data/predictions.csv was NOT touched: it is the frozen")
+    print("  pre-tournament forecast. See the README.")
+    print("=" * 70)
 
-    written = [out for _, out in STEPS if out] + ([NEWS_STEP[1]] if opts.news else [])
     print("\n" + "=" * 70)
     print("Pipeline complete. Outputs:")
-    for out in written:
+    for out in [o for _, o in STEPS if o]:
         print(f"  {out}")
-    if not opts.news:
-        print("  data/predictions.csv        (unchanged — team-news step skipped)")
+    print("  data/predictions.csv        (unchanged — frozen pre-tournament forecast)")
     print("=" * 70)
 
 

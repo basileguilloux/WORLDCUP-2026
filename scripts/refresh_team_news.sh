@@ -1,12 +1,26 @@
 #!/usr/bin/env bash
+# ============================================================================
+# RETIRED -- kept for reference only. DO NOT SCHEDULE.
+#
+# The 2026 tournament is over and data/predictions.csv is now the FROZEN
+# pre-tournament forecast that the README scores against the real results.
+# Re-running this would leak post-tournament news into that file and destroy
+# the only thing that makes it worth keeping.
+#
+# The LaunchAgent that ran this every 2 days was unloaded and deleted on
+# 2026-09-19. scripts/worldcup-news.plist.example is retained as a record of
+# how it was installed, and is likewise retired.
+#
+# This script now refuses to do anything quietly: every path that used to be a
+# silent no-op exits non-zero, so any future scheduled use fails visibly. Even
+# with a key present it will NOT overwrite the frozen forecast, because
+# 09_team_news.py requires an explicit --overwrite-frozen.
+# ============================================================================
+#
 # Refresh the WC-2026 team-news overlay for EVERY team and rewrite data/predictions.csv.
-# Run by launchd every 2 days (com.worldcup2026.teamnews). Safe to run by hand too.
 #
 # Requires an API key. Put it in ~/.worldcup2026.env (NOT committed):
 #     export ANTHROPIC_API_KEY="sk-ant-..."
-# Without it, this logs a SKIP and makes zero API calls.
-#
-# Install the LaunchAgent: see scripts/worldcup-news.plist.example.
 
 set -euo pipefail
 
@@ -36,20 +50,19 @@ PYTHON="$VENV_PY"
 
 # The key never lives in the repo -- only in ~/.worldcup2026.env.
 if [ ! -f "$ENV_FILE" ]; then
-  log "SKIP: $ENV_FILE not found, so no ANTHROPIC_API_KEY. No API calls made."
-  log "===== done (skipped) ====="
-  exit 0
+  die "$ENV_FILE not found, so no ANTHROPIC_API_KEY. No API calls made. (This script is RETIRED; see the header.)"
 fi
 # shellcheck source=/dev/null
 source "$ENV_FILE"
 
 if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-  log "SKIP: $ENV_FILE exists but sets no ANTHROPIC_API_KEY. No API calls made."
-  log "===== done (skipped) ====="
-  exit 0
+  die "$ENV_FILE exists but sets no ANTHROPIC_API_KEY. No API calls made."
 fi
 
 # --refresh re-fetches every team so the swing tracks the latest news, not a stale cache.
+# NOTE: no --overwrite-frozen here, by design. 09_team_news.py will refuse to
+# overwrite the frozen data/predictions.csv and exit non-zero. Anyone reviving
+# this must add that flag deliberately, having read why it is frozen.
 log "running: $PYTHON src/09_team_news.py --live --refresh"
 PYTHONPATH=src "$PYTHON" src/09_team_news.py --live --refresh >> "$LOG" 2>&1
 log "===== $(date '+%Y-%m-%d %H:%M:%S') refresh done ====="
