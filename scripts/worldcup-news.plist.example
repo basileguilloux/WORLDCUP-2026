@@ -2,7 +2,18 @@
 <!--
   LaunchAgent for the WC-2026 team-news refresh.
 
-  INSTALL
+  ============================================================================
+  RETIRED -- historical reference only. DO NOT INSTALL.
+
+  The 2026 tournament is over and data/predictions.csv is now the FROZEN
+  pre-tournament forecast the README scores against the real results. A
+  scheduled refresh would leak post-tournament news into it. The installed
+  LaunchAgent was unloaded and deleted on 2026-09-19; this file is kept only
+  to document how it had been set up. scripts/refresh_team_news.sh is retired
+  too and now exits non-zero rather than skipping quietly.
+  ============================================================================
+
+  INSTALL (retained for reference; do not run)
     1. Copy this file to ~/Library/LaunchAgents/com.worldcup2026.teamnews.plist
     2. Replace every /ABSOLUTE/PATH/TO/REPO below with your checkout path
        (launchd does not expand ~ or environment variables).
