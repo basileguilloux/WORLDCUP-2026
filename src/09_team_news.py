@@ -20,16 +20,32 @@ Output columns: news_score, sentiment, key_out/back, applied Elo delta and notes
 per team, PLUS both pre- and post-adjustment probabilities.
 
 WHERE IT WRITES (deliberate — an offline run must never clobber the real output):
-  --live  -> data/predictions.csv          the committed, news-adjusted final output
+  --live  -> data/predictions.csv          the FROZEN pre-tournament forecast
   offline -> data/predictions_offline.csv  cache-only dry run, safe to throw away
 Offline, any team missing from the cache defaults to neutral (0, no swing), so an
 offline run is mostly a no-op overlay and is NOT a substitute for the live one.
 
+data/predictions.csv IS FROZEN. The 2026 tournament is over and the README scores
+that forecast against the real results, so a refresh would leak post-tournament
+news into a file whose entire value is that it predates the event. --live
+therefore refuses to run without the explicit --overwrite-frozen flag.
+
+FAILURE HANDLING (a run either writes a real forecast or fails loudly):
+  * --live makes a minimal preflight call first; bad credentials exit non-zero
+    in seconds, before any work.
+  * Authentication / permission errors mid-run are never swallowed: the run
+    aborts non-zero and writes nothing.
+  * Only successful agent results are cached. Transient failures (rate limit,
+    5xx, timeout) degrade to neutral FOR THAT RUN ONLY and are never persisted.
+  * If more than MAX_DEGRADED_FRACTION of teams fell back to neutral, a live run
+    aborts rather than publish a flat overlay that looks like a forecast.
+
 Run:
   python src/09_team_news.py                    # cached dry run -> predictions_offline.csv
-  python src/09_team_news.py --live             # agent covers every uncached (team,date)
-  python src/09_team_news.py --live --refresh   # re-fetch EVERY team (ignore cache)
-A LaunchAgent (scripts/refresh_team_news.sh) runs `--live --refresh` every 2 days.
+  python src/09_team_news.py --live --overwrite-frozen             # deliberate refresh
+  python src/09_team_news.py --live --overwrite-frozen --refresh   # re-fetch EVERY team
+The LaunchAgent that used to run this every 2 days is RETIRED; see
+scripts/refresh_team_news.sh.
 """
 import json
 import os
@@ -58,6 +74,35 @@ NEWS_CACHE = "data/team_news.json"
 OUT_LIVE = "data/predictions.csv"           # real output: only a --live run may write here
 OUT_OFFLINE = "data/predictions_offline.csv"  # cache-only dry run
 MODEL = "claude-opus-4-8"
+
+# Refuse to write more than this fraction of TEAMS from degraded (error / neutral
+# fallback) records. A run that cannot actually reach the agent for most of the
+# field produces a flat, all-neutral overlay that looks like a real forecast, so
+# it is treated as a failed run rather than written out.
+MAX_DEGRADED_FRACTION = 0.25
+
+# data/predictions.csv is the FROZEN pre-tournament forecast (see README). The
+# 2026 tournament is over, so refreshing it would leak post-tournament news into
+# a file whose whole value is that it was written before a ball was kicked.
+FROZEN_MSG = (
+    "data/predictions.csv is the FROZEN pre-tournament forecast and must not be "
+    "refreshed: the 2026 tournament is over, so a new run would leak "
+    "post-tournament news into a file whose value is that it predates the event.\n"
+    "If you genuinely intend to overwrite it, re-run with --overwrite-frozen."
+)
+
+
+class NewsError(RuntimeError):
+    """Fatal condition: abort the run and write nothing."""
+
+
+def _auth_error_types():
+    """(AuthenticationError, PermissionDeniedError) if the SDK is importable, else ()."""
+    try:
+        import anthropic
+        return (anthropic.AuthenticationError, anthropic.PermissionDeniedError)
+    except Exception:
+        return ()
 
 # ============================================================================
 # 1. TEAM-NEWS AGENT  (Claude + web_search -> signed structured JSON, cached)
@@ -155,7 +200,13 @@ def _validate(rec, team):
 
 
 def agent_gather(team, match_date, client):
-    """One live agent call: Claude + web_search -> validated signed record. Neutral on failure."""
+    """One live agent call -> (validated record, status).
+
+    status is "ok" for a real answer or "fallback" for a transient failure
+    (rate limit, 5xx, timeout) that degrades to neutral FOR THIS RUN ONLY.
+    Authentication / permission errors are NOT transient and are never
+    swallowed: they raise NewsError so the caller can abort and write nothing.
+    """
     try:
         msgs = [{"role": "user", "content": _agent_user(team, match_date)}]
         tools = [{"type": "web_search_20260209", "name": "web_search"}]
@@ -171,9 +222,39 @@ def agent_gather(team, match_date, client):
                 continue
             break
         text = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text")
-        return _validate(_extract_json(text), team)
+        return _validate(_extract_json(text), team), "ok"
+    except _auth_error_types() as e:
+        raise NewsError(
+            f"authentication/permission failure from the Anthropic API while fetching "
+            f"{team} ({type(e).__name__}). Aborting: nothing was written.\n"
+            f"Check ANTHROPIC_API_KEY."
+        ) from e
     except Exception as e:
-        return _neutral(team, f"agent error ({type(e).__name__}) — neutral default")
+        # Transient only. Degrades to neutral for this run and is NEVER cached.
+        return _neutral(team, f"transient agent error ({type(e).__name__}) — neutral for this run"), "fallback"
+
+
+def preflight(client):
+    """One minimal call before any work, so a bad key fails in seconds, not after a full run.
+
+    Auth / permission failures are fatal (NewsError). Anything else is treated as
+    possibly transient: warn and let the run proceed.
+    """
+    try:
+        client.messages.create(model=MODEL, max_tokens=1,
+                               messages=[{"role": "user", "content": "ping"}])
+    except _auth_error_types() as e:
+        raise NewsError(
+            f"preflight failed: the Anthropic API rejected the credentials "
+            f"({type(e).__name__}). Aborting before any work; nothing was written.\n"
+            f"Check ANTHROPIC_API_KEY (the team-news step reads it from the "
+            f"environment, or from ~/.worldcup2026.env via scripts/refresh_team_news.sh)."
+        ) from e
+    except Exception as e:
+        print(f"[live] preflight warning: {type(e).__name__}: {e}\n"
+              f"       not an auth failure, continuing.")
+    else:
+        print("[live] preflight OK — credentials accepted.")
 
 
 def load_cache():
@@ -184,15 +265,23 @@ def load_cache():
 
 
 def get_news(team, match_date, cache, client, refresh=False):
-    """Cache-first lookup keyed by (date, team). --live fills/refreshes; offline -> neutral."""
+    """Cache-first lookup keyed by (date, team) -> (record, status).
+
+    status: "ok"       fresh, successful agent result (the only kind ever cached)
+            "cached"   served from a previous run's cached result
+            "fallback" neutral stand-in: transient error, or no data at all
+    """
     key = f"{match_date}|{team}"
     if not refresh and key in cache:
-        return _validate(cache[key], team)
+        return _validate(cache[key], team), "cached"
     if client is not None:
-        rec = agent_gather(team, match_date, client)
-        cache[key] = rec
-        return rec
-    return _validate(cache[key], team) if key in cache else _neutral(team)
+        rec, status = agent_gather(team, match_date, client)
+        if status == "ok":
+            cache[key] = rec          # only real results are persisted
+        return rec, status
+    if key in cache:
+        return _validate(cache[key], team), "cached"
+    return _neutral(team), "fallback"
 
 
 # ============================================================================
@@ -259,23 +348,35 @@ def pick(P):
 # ============================================================================
 # main
 # ============================================================================
-def main():
-    live = "--live" in sys.argv
-    refresh = "--refresh" in sys.argv
+def make_client():
+    """Construct the Anthropic client. Separated out so tests can inject a fake."""
+    import anthropic
+    return anthropic.Anthropic()
+
+
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    live = "--live" in argv
+    refresh = "--refresh" in argv
+    overwrite_frozen = "--overwrite-frozen" in argv
+
+    # Fail before any work (and before any API spend) if the run could not be
+    # written out anyway.
+    if live and not overwrite_frozen:
+        raise NewsError(FROZEN_MSG)
+
     client = None
     if live:
         try:
-            import anthropic
-            client = anthropic.Anthropic()
-            print(f"[live] team-news agent enabled — covering EVERY team "
-                  f"(model {MODEL} + web_search){', full refresh' if refresh else ''}\n")
+            client = make_client()
         except Exception as e:
-            print(f"[live] could not init Anthropic client ({e}); falling back to a "
-                  f"cache-only dry run\n")
-
-    # A --live run that could not reach the API is a dry run, not a live one: demote
-    # it so it writes to the offline file instead of clobbering data/predictions.csv.
-    live = live and client is not None
+            raise NewsError(
+                f"--live could not initialise the Anthropic client ({type(e).__name__}: {e}). "
+                f"Aborting; nothing was written.\nIs ANTHROPIC_API_KEY set?") from e
+        print(f"[live] team-news agent enabled — covering EVERY team "
+              f"(model {MODEL} + web_search){', full refresh' if refresh else ''}")
+        preflight(client)
+        print()
 
     cache = load_cache()
     strength, form, future = build_strength_and_form()
@@ -298,16 +399,38 @@ def main():
         n = len(base) * 2
         print(f"[live] gathering team news for {n} (team, match) slots across {len(base)} fixtures...")
     rows = []
+    status_by_team = defaultdict(set)
     for r in base.itertuples():
-        hn = get_news(r.home_team, r.date, cache, client, refresh)
-        an = get_news(r.away_team, r.date, cache, client, refresh)
+        hn, hs = get_news(r.home_team, r.date, cache, client, refresh)
+        an, as_ = get_news(r.away_team, r.date, cache, client, refresh)
+        status_by_team[r.home_team].add(hs)
+        status_by_team[r.away_team].add(as_)
         rows.append((hn, an))
+
+    # ---- sanity guard: refuse to publish a mostly-degraded overlay ----
+    all_teams = sorted(status_by_team)
+    degraded = [t for t, st in status_by_team.items() if "fallback" in st]
+    frac = len(degraded) / len(all_teams) if all_teams else 0.0
+    degraded_msg = (
+        f"{len(degraded)}/{len(all_teams)} teams ({frac:.0%}) fell back to neutral "
+        f"records, above the {MAX_DEGRADED_FRACTION:.0%} limit (MAX_DEGRADED_FRACTION). "
+        f"A mostly-neutral overlay is a failed run, not a forecast.\n"
+        f"  affected: {', '.join(sorted(degraded)[:12])}"
+        f"{' ...' if len(degraded) > 12 else ''}")
+    if frac > MAX_DEGRADED_FRACTION:
+        # Fatal for a live run, which writes the real data/predictions.csv. A dry
+        # run only writes the throwaway offline file, so it warns and continues.
+        if live:
+            raise NewsError(degraded_msg + "\nAborting; nothing was written.")
+        print(f"[offline] WARNING: {degraded_msg}\n")
     h_score = np.array([hn["news_score"] for hn, _ in rows])
     a_score = np.array([an["news_score"] for _, an in rows])
     h_delta = MAX_SWING * h_score          # signed: + raises rating, - lowers it
     a_delta = MAX_SWING * a_score
 
     if live:
+        # Reached only after the degraded-fraction guard passed. `cache` holds
+        # successful results only — fallbacks are never persisted.
         with open(NEWS_CACHE, "w") as f:
             json.dump(cache, f, indent=2, ensure_ascii=False)
 
@@ -341,19 +464,27 @@ def main():
     out.to_csv(out_path, index=False)
     if not live:
         print(f"[offline] cache-only dry run -> {out_path}  "
-              f"({OUT_LIVE} left untouched; re-run with --live to update it)\n")
+              f"({OUT_LIVE} is the frozen pre-tournament forecast and was left "
+              f"untouched)\n")
 
-    # ---- coverage report (every team) ----
-    all_teams = sorted(set(home_t) | set(away_t))
-    covered = {t for t in all_teams
-               if any(f"{d}|{t}" in cache for d in set(dates))}
-    print(f"COVERAGE: {len(covered)}/{len(all_teams)} teams have at least one news read.")
-    missing = [t for t in all_teams if t not in covered]
-    if missing:
-        print(f"  not yet covered ({len(missing)}): {', '.join(missing)}")
-        print("  -> run with --live (needs `anthropic` installed + ANTHROPIC_API_KEY) to cover them.\n")
-    else:
-        print("  every team covered.\n")
+    # ---- coverage report: REAL results only ----
+    # "Covered" means a fresh, successful agent result in THIS run. Cached
+    # records and neutral fallbacks are reported separately so a run can never
+    # look better than it was.
+    fresh = [t for t, st in status_by_team.items() if "ok" in st]
+    cached_only = [t for t, st in status_by_team.items() if "ok" not in st and "cached" in st]
+    # A team plays 3 fixtures, so these buckets can overlap: a team may have one
+    # date served from cache and another that fell back. Counts are "teams with
+    # at least one date of this kind", which is why they need not sum to 48.
+    print(f"COVERAGE: {len(fresh)}/{len(all_teams)} teams have a real result from this run.")
+    if cached_only:
+        print(f"  no live read, >=1 date from cache ({len(cached_only)}): "
+              f"{', '.join(sorted(cached_only))}")
+    if degraded:
+        print(f"  >=1 date fell back to neutral ({len(degraded)}): {', '.join(sorted(degraded))}")
+    if not fresh:
+        print("  -> no live reads. Run with --live (needs `anthropic` + ANTHROPIC_API_KEY).")
+    print()
 
     # ---- movers ----
     movers = out[out.max_swing > 0.005].sort_values("max_swing", ascending=False)
@@ -383,4 +514,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except NewsError as e:
+        print(f"\nERROR: {e}", file=sys.stderr)
+        sys.exit(1)
