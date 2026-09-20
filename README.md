@@ -49,6 +49,7 @@ Run in order from the repo root. `harness.py`, `step2_dixoncoles.py`, `step3_cla
 | 8 | `08_fixture_predictions.py` | `features.csv`, `results.csv`, FIFA ranking | `data/fixture_predictions.csv` |
 | 9 | `09_team_news.py` | the above + `data/team_news.json` | `data/predictions.csv` *(`--live` only)* |
 | 10 | `10_tournament_sim.py` | `features.csv`, `results.csv`, FIFA ranking | `data/tournament_sim.csv` |
+| 11 | `11_score_tournament.py` | `predictions.csv`, `wc26_actual_results.csv` | *(report only)* — scores the frozen forecast |
 
 What each output is:
 
@@ -75,9 +76,35 @@ Walk-forward log-loss (5-fold, ~49k matches — lower is better):
 
 Most of the gain comes from predicting the 3-way label directly rather than from the Dixon-Coles correction, which is worth only ~0.003 on its own.
 
-A note on draws: the predicted-draw *rate* under argmax is near zero, which looks like draw blindness but is a measurement artifact. Mean predicted `P(draw)` is 0.219–0.236 against a 0.237 base rate, so draws are well calibrated in probability — a draw is simply rarely any single match's single most likely class. Judge the model by log-loss and Brier, not the confusion matrix.
+### How it actually did
 
-Evaluation is **walk-forward** (`harness.py`, `TimeSeriesSplit`, 5 folds) throughout, so no fold is scored on data that preceded its training window.
+The tournament has since been played, so the frozen forecast can be scored against real results. `src/11_score_tournament.py` scores the `p_*_pre` columns against `data/raw/wc26_actual_results.csv` over the **68** group-stage fixtures that kicked off after the forecast was committed (the two 12 June fixtures are excluded — see [Leakage caveats](#leakage-caveats)).
+
+| Model | log-loss ↓ | 95% CI (marginal) | Brier ↓ | accuracy |
+|---|---|---|---|---|
+| **Frozen forecast (`p_*_pre`)** | **0.8851** | [0.7654, 1.0122] | 0.5248 | 0.618 |
+| Elo-only logistic (the `03` baseline) | 0.9176 | [0.7873, 1.0556] | 0.5538 | 0.618 |
+| Uniform 1/3 (ln 3) | 1.0986 | — | 0.6667 | n/a |
+| *post-news annotation (`p_*_post`), secondary* | *0.8876* | *[0.7663, 1.0161]* | *0.5258* | *0.618* |
+
+Uniform accuracy is n/a: argmax over a three-way tie is arbitrary.
+
+**Paired bootstrap** (10,000 resamples, seed 20260613). Comparing two models by whether their marginal intervals overlap is the wrong test — both models are scored on the same fixtures and rise and fall together on them. Resampling the same fixture indices for both and taking the mean per-fixture log-loss difference cancels that shared difficulty:
+
+| Comparison | mean difference | 95% CI | verdict |
+|---|---|---|---|
+| Forecast − Elo-only | **−0.0325** | [−0.0753, +0.0099] | spans 0 — not distinguishable |
+| post-news − pre-news | +0.0025 | [−0.0015, +0.0077] | spans 0 — not distinguishable |
+
+**Neither difference is established.** The forecast's 0.0325 edge over the Elo-only baseline is in its favour and the paired interval is far tighter than the marginal ones, but it still crosses zero (upper bound +0.0099), so on 68 fixtures the model is not shown to beat Elo alone. The news annotation's effect is likewise indistinguishable from zero, and its point estimate is slightly *worse*.
+
+Against the uniform prior the margin is not in doubt: 0.8851 vs 1.0986, with 61.8% of the 68 results called correctly.
+
+**Calibration.** Marginal outcome rates match the predicted rates closely — predicted home 0.447 / draw 0.236 / away 0.317 against actual home 0.441 / draw 0.279 / away 0.279. The 19 observed draws against roughly 16 expected is within one standard deviation (about 3.5), so it is not evidence of a draw bias either way.
+
+**Sensitivity.** Dropping the four 13 June fixtures as well — the ones sharing a date with the commit, kept in the headline because they kicked off hours after it — leaves **n = 64**, log-loss **0.8667**, Brier 0.5110, accuracy 0.641, and a paired forecast − Elo-only difference of **−0.0364, 95% CI [−0.0799, +0.0065]**. The conclusion is unchanged: slightly better, still not distinguishable.
+
+**On comparing with the 0.9024 backtest.** The tournament figure is nominally better (0.8851), but the two are not on the same footing: the walk-forward number averages over ~49k mostly-lopsided friendlies and qualifiers, while these are World Cup group games between closely matched sides. The fixture mixes differ, so the absolute log-loss levels are not directly comparable, and n = 68 is small regardless. The fair summary is that the model performed in line with expectations, not that it beat its backtest.
 
 ## Tournament simulation
 
@@ -196,7 +223,9 @@ A run either produces a real forecast or fails loudly. `--live` makes a minimal 
 
 ## Data
 
-`data/raw/` holds the inputs: ~49k historical results (played rows have scores, 2026 fixtures have NA), a FIFA ranking snapshot, goalscorers, shootouts, and a former-name mapping so each country's history sits under one current name. `data/` holds derived artifacts — the cleaned match table, engineered features, the saved Poisson model, the team-news cache and the four output CSVs above, including `tournament_sim.csv` with the Monte Carlo output described above.
+`data/raw/` holds the inputs: ~49k historical results (played rows have scores, 2026 fixtures have NA), a FIFA ranking snapshot, goalscorers, shootouts, and a former-name mapping so each country's history sits under one current name. It also holds `wc26_actual_results.csv` — the 72 actual group-stage results, used only for scoring and never as a model input.
+
+**Source of `wc26_actual_results.csv`:** the same upstream dataset `results.csv` came from — [`martj42/international_results`](https://github.com/martj42/international_results), file `results.csv` on `master`. Retrieved **2026-09-19T13:34:01Z** from `https://raw.githubusercontent.com/martj42/international_results/master/results.csv` (upstream commit `394fe81893`, dated 2026-08-26T21:56:21Z; sha256 of the download `df35268f8fc341ff7fb93d448b4e40356676ac35300a6b4461fd199a99ac1514`). Lineage was checked rather than assumed: the upstream file has identical columns, the two matches already scored in the frozen `results.csv` agree exactly, and all 70 forecast fixtures matched on `(date, home_team, away_team)` with no ambiguity. **`data/raw/results.csv` was not modified** — its 70 fixture rows remain scoreless, which a test enforces. `data/` holds derived artifacts — the cleaned match table, engineered features, the saved Poisson model, the team-news cache and the four output CSVs above, including `tournament_sim.csv` with the Monte Carlo output described above.
 
 ## Status
 
