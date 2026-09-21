@@ -1,5 +1,12 @@
 # WORLDCUP-2026
 
+## TL;DR
+
+- Predicts the 3-way 90-minute result (away win, draw, home win) for the 2026 World Cup. The model blends Elo, a Dixon-Coles Poisson component and a multinomial logit, then calibrates the blend with a temperature.
+- Backtest: 0.9024 walk-forward log-loss on about 49k matches, against 1.0510 for the naive base rate. This is the main claim.
+- Tournament check: on the 68 group games played after the forecast commit the log-loss is 0.8851, against 0.9176 for an Elo-only model. A paired bootstrap says that edge is not distinguishable from zero. The margin over a uniform prior (1.0986) is.
+- Provenance caveat: no server saw the forecast commit before 18 September, so its 13 June date rests on local git metadata. The real guarantee is that the inputs contain no result after 11 June. See "The frozen forecast" and "Leakage caveats" below.
+
 Match-outcome prediction for the 2026 FIFA World Cup. The target is the **3-way 90-minute result** — `0 = away win`, `1 = draw`, `2 = home win` — for the ~70 unplayed fixtures in `data/raw/results.csv`. The score itself is not modelled as an output; goals are only an intermediate quantity.
 
 One consistent label is used everywhere, knockouts included: a tie at 90' is a draw, with no extra time or penalties. That keeps the backtest and the final output on the same definition.
@@ -240,8 +247,9 @@ A run either produces a real forecast or fails loudly. `--live` makes a minimal 
 - **Result** — 0.8851 log-loss, 0.5248 Brier, 61.8% accuracy over the 68 group-stage fixtures that kicked off after the forecast was committed, against 0.9176 for an Elo-only baseline and 1.0986 for a uniform prior. On a paired bootstrap the edge over Elo alone is not statistically distinguishable; the margin over the uniform prior is. See [How it actually did](#how-it-actually-did).
 - **Provenance** — `data/predictions.csv` is frozen, its `p_*_pre` columns pinned by test to the model run in `32ffb4c`. The scheduled news refresh is retired. Leakage caveats are listed rather than argued away, including the limits of what git dates can prove.
 - **Tests** — 31 in `tests/`, no network calls: output schemas, frozen-forecast provenance, the scoring exclusion rule, the paired bootstrap against synthetic cases with known answers, and the team-news failure paths.
-- Single entry point, pinned `requirements.txt`, dev deps split into `requirements-dev.txt`, MIT license.
+- Single entry point, `requirements.txt` with minimum versions, dev deps split into `requirements-dev.txt`, MIT license.
+- Tests run in GitHub Actions on every push and pull request.
 
-**Not included.** CI, and visualizations of the predictions. The validated result covers the **group stage only** — the 32 knockout matches were never forecast, and scoring them would first need 90-minute scores, since the upstream dataset records knockout results after extra time.
+**Not included.** Visualizations of the predictions. The validated result covers the **group stage only** — the 32 knockout matches were never forecast, and scoring them would first need 90-minute scores, since the upstream dataset records knockout results after extra time.
 
 **Known limitation.** Features are the bottleneck: `elo_diff` dominates, and further gains need richer data (squad or market value, rest and travel) rather than more model tuning.
