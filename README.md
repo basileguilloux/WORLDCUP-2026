@@ -233,6 +233,15 @@ A run either produces a real forecast or fails loudly. `--live` makes a minimal 
 
 ## Status
 
-Complete and evaluated against baselines: data cleaning, Elo, feature engineering, the Poisson/Dixon-Coles model, the Step-3 ensemble, FIFA blending, per-fixture prediction, the team-news overlay and the tournament Monte Carlo — with a single entry point (`run_pipeline.py`), a pinned `requirements.txt`, smoke tests in `tests/`, and an MIT license. The forecast is frozen (its provenance is enforced by a test), the scheduled refresh is retired, and the tournament has been played. Leakage caveats are listed above rather than argued away.
+**Complete.** The forecast was made before the tournament, frozen, and has since been scored against real results.
 
-Not yet included: CI, and visualizations of the predictions. Known limitation: features are the bottleneck — `elo_diff` dominates, and further gains need richer data (squad/market value, rest and travel) rather than more model tuning.
+- **Pipeline** — 11 stages, data cleaning through tournament scoring, run end to end by `python run_pipeline.py`.
+- **Model** — the Step-3 ensemble (0.3 Dixon-Coles Poisson + 0.7 multinomial logit, T = 0.95), 0.9024 walk-forward log-loss on ~49k historical matches.
+- **Result** — 0.8851 log-loss, 0.5248 Brier, 61.8% accuracy over the 68 group-stage fixtures that kicked off after the forecast was committed, against 0.9176 for an Elo-only baseline and 1.0986 for a uniform prior. On a paired bootstrap the edge over Elo alone is not statistically distinguishable; the margin over the uniform prior is. See [How it actually did](#how-it-actually-did).
+- **Provenance** — `data/predictions.csv` is frozen, its `p_*_pre` columns pinned by test to the model run in `32ffb4c`. The scheduled news refresh is retired. Leakage caveats are listed rather than argued away, including the limits of what git dates can prove.
+- **Tests** — 31 in `tests/`, no network calls: output schemas, frozen-forecast provenance, the scoring exclusion rule, the paired bootstrap against synthetic cases with known answers, and the team-news failure paths.
+- Single entry point, pinned `requirements.txt`, dev deps split into `requirements-dev.txt`, MIT license.
+
+**Not included.** CI, and visualizations of the predictions. The validated result covers the **group stage only** — the 32 knockout matches were never forecast, and scoring them would first need 90-minute scores, since the upstream dataset records knockout results after extra time.
+
+**Known limitation.** Features are the bottleneck: `elo_diff` dominates, and further gains need richer data (squad or market value, rest and travel) rather than more model tuning.
