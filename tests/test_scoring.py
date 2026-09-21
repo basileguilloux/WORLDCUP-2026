@@ -136,3 +136,23 @@ def test_paired_bootstrap_is_deterministic_for_a_fixed_seed(sc):
     a = sc.paired_bootstrap(y, P_a, P_b, n_boot=1000, seed=42)
     b = sc.paired_bootstrap(y, P_a, P_b, n_boot=1000, seed=42)
     assert a == b
+
+
+def test_simulator_reads_no_post_tournament_data():
+    """The clean-data claim in the README must stay true.
+
+    10_tournament_sim.py may only read the three frozen inputs, and none of them
+    may contain a match result dated after 11 June 2026.
+    """
+    src = (ROOT / "src/10_tournament_sim.py").read_text()
+    import re
+    reads = set(re.findall(r'read_csv\("([^"]+)"', src))
+    assert reads == {"data/raw/results.csv", "data/raw/former_names.csv",
+                     "data/raw/fifa_ranking_2026-06-11.csv"}, reads
+    assert "wc26_actual_results" not in src, "simulator must not read actual results"
+
+    results = pd.read_csv(ROOT / "data/raw/results.csv", parse_dates=["date"])
+    played = results[results.home_score.notna()]
+    assert (played.date > "2026-06-11").sum() == 0, (
+        "results.csv gained a scored match after 11 June; the simulator's inputs "
+        "are no longer pre-tournament")
