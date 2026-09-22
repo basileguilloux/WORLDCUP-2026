@@ -224,7 +224,7 @@ This section documents **how the post-news annotation was produced**. It is not 
 
 `09_team_news.py` is a transparent, prediction-time overlay. It does not retrain the model and does not add a trained feature.
 
-A Claude agent with web search covers every team and returns a signed score per team, `news_score` in `[-1, +1]` — negative for injuries, suspensions, off-field turmoil or poor preparation; positive for key players returning, strong form or settled preparation. That becomes a signed Elo adjustment, `delta = MAX_SWING * news_score` (default `MAX_SWING = 120`, deliberately larger than the 60-point home advantage), applied to the team's strength **input** and fed through the unchanged Step-3 ensemble. Results are cached in `data/team_news.json` as an audit artifact.
+An LLM agent with web search covers every team and returns a signed score per team, `news_score` in `[-1, +1]` — negative for injuries, suspensions, off-field turmoil or poor preparation; positive for key players returning, strong form or settled preparation. That becomes a signed Elo adjustment, `delta = MAX_SWING * news_score` (default `MAX_SWING = 120`, deliberately larger than the 60-point home advantage), applied to the team's strength **input** and fed through the unchanged Step-3 ensemble. Results are cached in `data/team_news.json` as an audit artifact.
 
 The live path needed `ANTHROPIC_API_KEY`, read from `~/.worldcup2026.env` (never committed). It is now gated behind `--overwrite-frozen` and should not be run.
 
