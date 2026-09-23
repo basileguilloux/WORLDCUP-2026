@@ -6,7 +6,7 @@ regression where a script writes the wrong shape to the wrong path.
 
 Run from the repo root:  pytest
 Regenerate the inputs with:  python run_pipeline.py
-(data/predictions.csv is committed and only refreshed by `run_pipeline.py --news`.)
+(data/predictions.csv is the committed frozen forecast and no pipeline step writes it.)
 """
 from pathlib import Path
 
@@ -50,12 +50,11 @@ def test_output_schema(rel):
         assert len(df) == n_rows, f"{rel} should have {n_rows} rows, got {len(df)}"
 
 
-def test_the_four_outputs_are_distinct_files():
+def test_the_outputs_are_distinct_files():
     """Guards the original bug: three scripts writing one path."""
     writers = {
         "src/07_blend_predict.py": "data/power_rankings.csv",
         "src/08_fixture_predictions.py": "data/fixture_predictions.csv",
-        "src/09_team_news.py": "data/predictions.csv",
         "src/10_tournament_sim.py": "data/tournament_sim.csv",
     }
     assert len(set(writers.values())) == len(writers)

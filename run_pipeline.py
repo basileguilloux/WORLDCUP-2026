@@ -3,20 +3,15 @@
 Equivalent to running each script in src/ by hand (see README "Pipeline"
 section), but as one command from the repo root:
 
-    python run_pipeline.py              # everything except the team-news step
-    python run_pipeline.py --skip-news  # explicit no-op; same as the default
-    python run_pipeline.py --news       # RETIRED: exits 1 and explains why
+    python run_pipeline.py
 
 Each step is run as its own process from the repo root, so the relative data
 paths inside each script (e.g. "data/raw/results.csv") resolve correctly, and
 `from harness import ...` resolves correctly too (Python puts a script's own
 directory, src/, on sys.path when that script is the one being executed).
 
-THE TEAM-NEWS STEP IS RETIRED. data/predictions.csv is the frozen forecast:
-its p_*_pre columns are bit-identical to the model run committed in 99a2305 on
-13 June 2026, and no run from here may rewrite it. --news is kept only to fail loudly and
-explain why, pointing at the one deliberate override; the pipeline itself has
-no way to pass that override through.
+No step writes data/predictions.csv. That file is the frozen forecast: its
+p_*_pre columns are bit-identical to the model run committed in 99a2305.
 """
 import argparse
 import subprocess
@@ -43,21 +38,6 @@ STEPS = [
     ("10_tournament_sim.py", "data/tournament_sim.csv"),
 ]
 
-NEWS_STEP = ("09_team_news.py", "data/predictions.csv")
-
-FROZEN_REFUSAL = """ERROR: --news is retired and will not run.
-
-data/predictions.csv is the FROZEN forecast. Its p_*_pre columns are
-bit-identical to the model run committed in 99a2305 on 13 June 2026, and the
-README documents that provenance. Rewriting the file would destroy it.
-
-There is deliberately no way to override this from run_pipeline.py. If you truly
-intend to discard the frozen forecast, run the one command that says so:
-
-    python src/09_team_news.py --live --overwrite-frozen
-
-Re-run without --news to run everything else."""
-
 
 def run(step, args=()):
     print("\n" + "=" * 70)
@@ -70,34 +50,16 @@ def run(step, args=()):
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    g = ap.add_mutually_exclusive_group()
-    g.add_argument("--news", action="store_true",
-                   help="RETIRED: exits 1 and explains why. data/predictions.csv is "
-                        "the frozen forecast.")
-    g.add_argument("--skip-news", action="store_true",
-                   help="explicitly skip the team-news step (this is the default).")
-    opts = ap.parse_args()
-
-    # Refuse before running anything, so the failure costs nothing.
-    if opts.news:
-        print(FROZEN_REFUSAL, file=sys.stderr)
-        sys.exit(1)
+    argparse.ArgumentParser(description=__doc__.splitlines()[0]).parse_args()
 
     for step, _ in STEPS:
         run(step)
 
     print("\n" + "=" * 70)
-    print("SKIPPED 09_team_news.py (team-news overlay) — retired.")
-    print("  data/predictions.csv was NOT touched: it is the frozen")
-    print("  forecast. See the README.")
-    print("=" * 70)
-
-    print("\n" + "=" * 70)
     print("Pipeline complete. Outputs:")
     for out in [o for _, o in STEPS if o]:
         print(f"  {out}")
-    print("  data/predictions.csv        (unchanged — frozen forecast)")
+    print("  data/predictions.csv        (unchanged, frozen forecast)")
     print("=" * 70)
 
 

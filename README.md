@@ -20,7 +20,7 @@ python run_pipeline.py
 
 `run_pipeline.py` runs every step below from the repo root and writes `data/power_rankings.csv`, `data/fixture_predictions.csv` and `data/tournament_sim.csv`.
 
-**It does not touch `data/predictions.csv`.** That file is the **frozen forecast** (see below). `--news` is retired and exits 1 with an explanation; `--skip-news` is an explicit no-op.
+**It does not touch `data/predictions.csv`.** That file is the **frozen forecast** (see below).
 
 Any step can also be run on its own from the repo root:
 
@@ -54,7 +54,6 @@ Run in order from the repo root. `harness.py`, `step2_dixoncoles.py`, `step3_cla
 | 6 | `06_simulate.py` | `results.csv`, `poisson_model.joblib` | *(report only)* |
 | 7 | `07_blend_predict.py` | `results.csv`, `fifa_ranking_2026-06-11.csv` | `data/power_rankings.csv` |
 | 8 | `08_fixture_predictions.py` | `features.csv`, `results.csv`, FIFA ranking | `data/fixture_predictions.csv` |
-| 9 | `09_team_news.py` | the above + `data/team_news.json` | `data/predictions.csv` *(`--live` only)* |
 | 10 | `10_tournament_sim.py` | `features.csv`, `results.csv`, FIFA ranking | `data/tournament_sim.csv` |
 | 11 | `11_score_tournament.py` | `predictions.csv`, `wc26_actual_results.csv` | *(report only)* — scores the frozen forecast |
 
@@ -62,7 +61,7 @@ What each output is:
 
 - **`data/power_rankings.csv`** — one row per team: expected points across the remaining fixtures, Elo, FIFA-equivalent Elo and the blend weight. A standings-style view, not per-match probabilities.
 - **`data/fixture_predictions.csv`** — one row per fixture: `p_home` / `p_draw` / `p_away` from the Step-3 ensemble, with no team-news overlay.
-- **`data/predictions.csv`** — the headline output, and **frozen**. Its `p_*_pre` columns are the forecast; its `p_*_post` columns are a later team-news annotation that is not scored. See [The frozen forecast](#the-frozen-forecast).
+- **`data/predictions.csv`** — the headline output, and **frozen**. Its `p_*_pre` columns are the forecast; its `p_*_post` columns are a later team-news annotation, reported only as a secondary line. See [The frozen forecast](#the-frozen-forecast).
 - **`data/tournament_sim.csv`** — one row per team: probability of winning the group, qualifying, and reaching each knockout round through `champion`.
 
 ## Method
@@ -198,29 +197,20 @@ These are stated plainly rather than argued away.
 
 `p_home_post` / `p_draw_post` / `p_away_post`, and the per-team `news_score`, `sentiment`, `key_out`, `key_back`, `elo_delta` and `notes` columns, are a **team-news annotation added on 18 September 2026**. They move 8 of the 70 fixtures, by up to 6.6 percentage points (largest: Netherlands v Japan, 34.2/32.9/32.9 → 28.1/32.4/39.5).
 
-`data/team_news.json` holds no fetch timestamp or source-date field, and has a single commit, on 18 September. **The retrieval date of that news cannot be established from the repository.** The agent was instructed to restrict itself to news published before each match date, and the notes read as pre-match, but that is an instruction to a model, not a verifiable constraint.
+`data/team_news.json` holds no fetch timestamp or source-date field, and has a single commit, on 18 September. **The retrieval date of that news cannot be established from the repository.** The overlay was instructed to use only news published before each match date, and the notes read as pre-match. That was an instruction, not a verifiable constraint.
 
 **These columns are not used for evaluation anywhere.** Nothing in `src/` or `tests/` reads `data/predictions.csv`, and the tournament comparison above is scored from `data/tournament_sim.csv`, which is built without them. They are kept for audit, not for scoring.
 
 ### Guards
 
-- `run_pipeline.py --news` exits 1 and refuses to run any step.
-- `09_team_news.py --live` exits 1 unless given an explicit `--overwrite-frozen`.
-- The LaunchAgent that refreshed this every 2 days was **unloaded and deleted on 19 September 2026**. `scripts/refresh_team_news.sh` and `scripts/worldcup-news.plist.example` are retained as documentation, both marked retired; the script now exits non-zero instead of skipping quietly.
+- No step in `run_pipeline.py` writes `data/predictions.csv`.
+- The team-news overlay that produced the `p_*_post` columns was removed from the repository on 23 September 2026, together with its scheduled refresh script. It can no longer overwrite the file.
 
-## Team-news adjustment
+## Team-news annotation
 
-This section documents **how the post-news annotation was produced**. It is not a step to re-run — see the guards above — and it is not part of the frozen forecast.
+This section records **how the post-news annotation was produced**. The code is no longer in the repository and the annotation is not part of the frozen forecast.
 
-`09_team_news.py` is a transparent, prediction-time overlay. It does not retrain the model and does not add a trained feature.
-
-An LLM agent with web search covers every team and returns a signed score per team, `news_score` in `[-1, +1]` — negative for injuries, suspensions, off-field turmoil or poor preparation; positive for key players returning, strong form or settled preparation. That becomes a signed Elo adjustment, `delta = MAX_SWING * news_score` (default `MAX_SWING = 120`, deliberately larger than the 60-point home advantage), applied to the team's strength **input** and fed through the unchanged Step-3 ensemble. Results are cached in `data/team_news.json` as an audit artifact.
-
-The live path needed `ANTHROPIC_API_KEY`, read from `~/.worldcup2026.env` (never committed). It is now gated behind `--overwrite-frozen` and should not be run.
-
-Without `--live` the script is a **cache-only dry run**: it writes `data/predictions_offline.csv` and leaves the frozen file alone. Teams missing from the cache default to neutral, so a dry run is a near-no-op overlay, useful only for inspecting the mechanism.
-
-A run either produces a real forecast or fails loudly. `--live` makes a minimal preflight call first, so bad credentials exit non-zero in seconds; authentication errors mid-run abort instead of degrading to neutral; only successful results are cached, so a failure can never poison `data/team_news.json`; and if more than `MAX_DEGRADED_FRACTION` (25%) of teams fell back to neutral, the run aborts rather than publish a flat overlay that looks like a forecast.
+The overlay was a prediction-time adjustment. It did not retrain the model or add a trained feature. An LLM agent with web search scored every team on a signed scale, `news_score` in `[-1, +1]`. Injuries, suspensions and poor preparation pushed the score down. Key players returning and settled preparation pushed it up. The score became an Elo adjustment `delta = 120 * news_score`, applied to the team's strength **input** and passed through the unchanged Step-3 ensemble. The per-team records are kept in `data/team_news.json` for audit.
 
 ## Data
 
@@ -235,8 +225,8 @@ A run either produces a real forecast or fails loudly. `--live` makes a minimal 
 - **Pipeline** — 11 stages, data cleaning through tournament scoring, run end to end by `python run_pipeline.py`.
 - **Model** — the Step-3 ensemble (0.3 Dixon-Coles Poisson + 0.7 multinomial logit, T = 0.95), 0.9024 walk-forward log-loss on ~49k historical matches.
 - **Result** — 0.8851 log-loss, 0.5248 Brier, 61.8% accuracy over the 68 group-stage fixtures that kicked off after the forecast was committed, against 0.9176 for an Elo-only baseline and 1.0986 for a uniform prior. On a paired bootstrap the edge over Elo alone is not statistically distinguishable; the margin over the uniform prior is. See [How it actually did](#how-it-actually-did).
-- **Provenance** — `data/predictions.csv` is frozen, its `p_*_pre` columns pinned by test to the model run in `99a2305`. The scheduled news refresh is retired. Leakage caveats are listed rather than argued away, including the limits of what git dates can prove.
-- **Tests** — 31 in `tests/`, no network calls: output schemas, frozen-forecast provenance, the scoring exclusion rule, the paired bootstrap against synthetic cases with known answers, and the team-news failure paths.
+- **Provenance** — `data/predictions.csv` is frozen, its `p_*_pre` columns pinned by test to the model run in `99a2305`. The team-news overlay has been removed. Leakage caveats are listed rather than argued away, including the limits of what git dates can prove.
+- **Tests** — in `tests/`, no network calls: output schemas, frozen-forecast provenance, the scoring exclusion rule and the paired bootstrap against synthetic cases with known answers.
 - Single entry point, `requirements.txt` with minimum versions, dev deps split into `requirements-dev.txt`, MIT license.
 - Tests run in GitHub Actions on every push and pull request.
 

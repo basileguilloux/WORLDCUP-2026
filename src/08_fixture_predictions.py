@@ -12,8 +12,8 @@ home games (USA/Canada/Mexico in their own country) get the home bump; the other
 62 neutral-venue games get none.
 
 Output: data/fixture_predictions.csv — per-fixture W/D/L with NO team-news
-overlay. The news-adjusted final output is data/predictions.csv, written by
-09_team_news.py.
+overlay. data/predictions.csv is the separate frozen forecast and is not
+written by any pipeline step.
 """
 import numpy as np
 import pandas as pd
