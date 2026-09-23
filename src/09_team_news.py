@@ -26,7 +26,7 @@ Offline, any team missing from the cache defaults to neutral (0, no swing), so a
 offline run is mostly a no-op overlay and is NOT a substitute for the live one.
 
 data/predictions.csv IS FROZEN. Its p_*_pre columns are the forecast, bit-identical
-to the model run committed in 32ffb4c on 13 June 2026; the p_*_post columns are this
+to the model run committed in 99a2305 on 13 June 2026; the p_*_post columns are this
 overlay, added 18 September. Regenerating the file would destroy that provenance, so
 --live refuses to run without the explicit --overwrite-frozen flag.
 
@@ -82,11 +82,11 @@ MODEL = "claude-opus-4-8"
 MAX_DEGRADED_FRACTION = 0.25
 
 # data/predictions.csv is the FROZEN forecast (see README). Its p_*_pre columns
-# are bit-identical to the model run committed in 32ffb4c on 13 June 2026, and
+# are bit-identical to the model run committed in 99a2305 on 13 June 2026, and
 # regenerating the file would destroy that provenance.
 FROZEN_MSG = (
     "data/predictions.csv is the FROZEN forecast and must not be refreshed: its "
-    "p_*_pre columns are bit-identical to the model run committed in 32ffb4c on "
+    "p_*_pre columns are bit-identical to the model run committed in 99a2305 on "
     "13 June 2026, and regenerating the file would destroy that provenance.\n"
     "If you genuinely intend to overwrite it, re-run with --overwrite-frozen."
 )

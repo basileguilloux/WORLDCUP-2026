@@ -3,7 +3,7 @@
 data/predictions.csv carries two kinds of column:
 
   * p_*_pre   -- THE FROZEN FORECAST. Must equal, exactly, the model output
-                 committed in 32ffb4c (13 June 2026 12:09 +02:00). If this test
+                 committed in 99a2305 (13 June 2026 12:09 +02:00). If this test
                  fails, either the file was regenerated or the model changed,
                  and the README's provenance claim is no longer true.
   * p_*_post  -- a team-news annotation added on 18 September 2026. Not scored,
@@ -17,7 +17,7 @@ import pandas as pd
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-FROZEN_COMMIT = "32ffb4c"          # "final ensemble: multinomial logistic regression and poisson"
+FROZEN_COMMIT = "99a2305"          # "final ensemble: multinomial logistic regression and poisson"
 KEY = ["date", "home_team", "away_team"]
 
 
@@ -45,7 +45,7 @@ def test_same_fixture_list(frozen, current):
 
 
 def test_pre_news_columns_match_frozen_commit_exactly(frozen, current):
-    """The headline forecast must be bit-identical to 32ffb4c's model output."""
+    """The headline forecast must be bit-identical to 99a2305's model output."""
     m = frozen.merge(current, on=KEY, how="inner")
     assert len(m) == 70, "fixtures failed to line up"
     for old, new in [("p_home", "p_home_pre"), ("p_draw", "p_draw_pre"), ("p_away", "p_away_pre")]:

@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # tests/test_frozen_forecast.py compares against commit 32ffb4c, so it needs full history
+          # tests/test_frozen_forecast.py compares against commit 99a2305, so it needs full history
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:

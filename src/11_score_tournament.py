@@ -5,7 +5,7 @@ with no team-news overlay -- against data/raw/wc26_actual_results.csv.
 
 WHAT IS SCORED, AND WHY
 -----------------------
-Only fixtures whose kickoff FOLLOWED the frozen commit (32ffb4c, author date
+Only fixtures whose kickoff FOLLOWED the frozen commit (99a2305, author date
 2026-06-13 12:09:22 +02:00 = 10:09:22 UTC) are genuine predictions. The fixture
 data carries dates but no kickoff times, so eligibility is decided per date:
 
@@ -40,7 +40,7 @@ from sklearn.metrics import accuracy_score, log_loss
 
 PREDICTIONS = "data/predictions.csv"
 ACTUALS = "data/raw/wc26_actual_results.csv"
-FROZEN_COMMIT_DATE = pd.Timestamp("2026-06-13")   # author date of 32ffb4c (UTC 10:09)
+FROZEN_COMMIT_DATE = pd.Timestamp("2026-06-13")   # author date of 99a2305 (UTC 10:09)
 N_BOOT, BOOT_SEED = 10000, 20260613
 START, HOME_ADV = 1500.0, 60.0
 KEY = ["date", "home_team", "away_team"]
@@ -174,7 +174,7 @@ def main():
     print("=" * 84)
     print(f"forecast file : {PREDICTIONS}  (p_*_pre columns — no team-news overlay)")
     print(f"actuals       : {ACTUALS}")
-    print(f"frozen commit : 32ffb4c, author date {FROZEN_COMMIT_DATE.date()} 12:09 +02:00 (10:09 UTC)")
+    print(f"frozen commit : 99a2305, author date {FROZEN_COMMIT_DATE.date()} 12:09 +02:00 (10:09 UTC)")
     print(f"\nfixtures in forecast            : {len(merged)}")
     print(f"excluded (kicked off pre-commit): {len(dropped)}")
     for r in dropped.itertuples():

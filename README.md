@@ -5,7 +5,7 @@
 - Predicts the 3-way 90-minute result (away win, draw, home win) for the 2026 World Cup. The model blends Elo, a Dixon-Coles Poisson component and a multinomial logit, then calibrates the blend with a temperature.
 - Backtest: 0.9024 walk-forward log-loss on about 49k matches, against 1.0510 for the naive base rate. This is the main claim.
 - Tournament check: on the 68 group games played after the forecast commit the log-loss is 0.8851, against 0.9176 for an Elo-only model. A paired bootstrap says that edge is not distinguishable from zero. The margin over a uniform prior (1.0986) is.
-- Provenance caveat: no server saw the forecast commit before 18 September, so its 13 June date rests on local git metadata. The real guarantee is that the inputs contain no result after 11 June. See "The frozen forecast" and "Leakage caveats" below.
+- Provenance caveat: no server saw the forecast commit before 18 September, so its 13 June date rests on local git metadata. History was rewritten on 23 September 2026 to remove an internal notes file, which changed every commit hash. The real guarantee is that the inputs contain no result after 11 June. See "The frozen forecast" and "Leakage caveats" below.
 
 Match-outcome prediction for the 2026 FIFA World Cup. The target is the **3-way 90-minute result** — `0 = away win`, `1 = draw`, `2 = home win` — for the ~70 unplayed fixtures in `data/raw/results.csv`. The score itself is not modelled as an output; goals are only an intermediate quantity.
 
@@ -148,35 +148,32 @@ England then beat France 6-4 in the third-place playoff on July 18. Those were a
 
 ## The frozen forecast
 
-**The frozen forecast is the `p_home_pre` / `p_draw_pre` / `p_away_pre` columns of `data/predictions.csv`.** Those are the model's own output, with no team-news adjustment. They were produced by the model as committed in **`32ffb4c`, whose author date is 13 June 2026 12:09 +02:00**, and reproduced **bit-for-bit** by the later run committed in `7b9ad72` on 18 September (max difference 1.11e-16 across all 70 fixtures). That date is author-set metadata with no independent corroboration — see [What the 13 June date actually rests on](#what-the-13-june-date-actually-rests-on). The file must not be regenerated.
+**The frozen forecast is the `p_home_pre` / `p_draw_pre` / `p_away_pre` columns of `data/predictions.csv`.** Those are the model's own output, with no team-news adjustment. They were produced by the model as committed in **`99a2305`, whose author date is 13 June 2026 12:09 +02:00**, and reproduced **bit-for-bit** by the later run committed in `be71dfd` on 18 September (max difference 1.11e-16 across all 70 fixtures). That date is author-set metadata with no independent corroboration — see [What the 13 June date actually rests on](#what-the-13-june-date-actually-rests-on). The file must not be regenerated.
 
-Provenance is checked in CI-able form by `tests/test_frozen_forecast.py`, which fails if those columns ever drift from `32ffb4c`.
+Provenance is checked in CI-able form by `tests/test_frozen_forecast.py`, which fails if those columns ever drift from `99a2305`.
 
 ### What the 13 June date actually rests on
 
-**There is no independent timestamp for 13 June.** The date rests on git metadata written on the author's own machine, and nothing else. This is stated up front because everything below is weaker than it first looks.
+**There is no independent timestamp for 13 June.** The date rests on git metadata written on the author's own machine. Everything below should be read with that in mind.
 
-The commit that carries the forecast was **never pushed to GitHub until 18 September**. GitHub's server-side record shows:
+**History was rewritten on 23 September 2026.** An internal notes file was removed from every commit and the repository was recreated on GitHub. No other file changed. Every commit hash changed as a result. The forecast commit was `32ffb4c` and is now `99a2305`. Every file in it other than the removed one is byte-identical to the original. Author and committer dates were preserved. The rewrite also means the GitHub creation date of this repository attests nothing about the forecast.
 
-- `32ffb4c` — present on the remote with a **commit date of 2026-09-18T13:41:00Z**.
-- `f296b05` — the original, pre-rebase version of that commit — **"No commit found for SHA"**. GitHub has never seen it.
+Before the rewrite the forecast commit reached GitHub only on 18 September, 90 days after its author date. So no server ever saw it before the tournament ended.
 
-The repository itself was created on GitHub at **2026-06-13T09:15:41Z**, which is before the 13 June commit, so the repo's own age is independently attested. That attests the repo, not the forecast: no server ever observed the forecast commit until 18 September, 90 days later.
+What remains is local evidence. All of it was produced on the same machine and all of it could be forged.
 
-What remains is local evidence, all of it produced on the same machine and all of it forgeable by someone who wanted to:
+- The **author date** of `99a2305` is 13 June 2026 12:09:22 +02:00. Author dates are plain metadata and can be set to any value.
+- A pre-rebase original of the commit, `f296b05` in the pre-rewrite history, is still in the author's local object store. Its **committer date matches its author date**. Its `data/predictions.csv` blob is byte-identical to the one in `99a2305`.
+- The author's local **reflog** records that original at `HEAD@{2026-06-13 12:09:22 +0200}`. Git writes reflog timestamps at the moment of the operation, so they are not author-set. They are local only and can be edited.
 
-- The **author date** of `32ffb4c` (13 June 2026 12:09:22 +02:00). Author dates are plain metadata and can be set to any value.
-- The pre-rebase original `f296b05`, still in the local object store, whose **committer date matches its author date** (both 13 June 12:09:22) — so the timestamps were not merely author-overridden at commit time. Its `data/predictions.csv` blob is byte-identical (`968de0ba…`) to the one in `32ffb4c`.
-- The local **reflog** entry `f296b05 HEAD@{2026-06-13 12:09:22 +0200}: commit: final ensemble…`. Reflog timestamps are written by git at the moment of the operation rather than taken from the commit, so they are not author-set — but they are local-only, never pushed, and can be edited.
+Independent of any date, and worth more than all of the above:
 
-Genuinely independent of dates, and worth more than any of the above:
-
-- Every input — `data/raw/results.csv`, `features.csv`, `processed_matches.csv`, `poisson_model.joblib`, the FIFA snapshot — has **exactly one commit** and **unchanged bytes** since.
-- `step3_classifier.py`, `harness.py`, `05_model.py`, `04_features.py`, `02_elo.py` likewise; `git diff 32ffb4c HEAD` across them is empty.
+- Every input (`data/raw/results.csv`, `features.csv`, `processed_matches.csv`, `poisson_model.joblib` and the FIFA snapshot) has **exactly one commit** and **unchanged bytes** since.
+- The same holds for `step3_classifier.py`, `harness.py`, `05_model.py`, `04_features.py` and `02_elo.py`. `git diff 99a2305 HEAD` across them is empty.
 - Re-running the pipeline today reproduces the numbers to 1.11e-16.
-- `results.csv` contains **no tournament result after 11 June**. A forecast produced later using this repo's data could not have known any of the outcomes it predicts, whatever date sits on the commit.
+- `results.csv` contains **no tournament result after 11 June**. A forecast produced later from this repository's data could not have known any outcome it predicts, whatever date sits on the commit.
 
-That last point is the real guarantee. The dating is corroborated but not proven; the *information content* of the inputs is verifiable regardless.
+That last point is the real guarantee. The dating is corroborated but not proven. The *information content* of the inputs is verifiable regardless.
 
 ### Leakage caveats
 
@@ -193,16 +190,9 @@ These are stated plainly rather than argued away.
    *The data is clean, and this is checkable.* The simulator reads exactly three files — `data/raw/results.csv`, `data/raw/former_names.csv` and `data/raw/fifa_ranking_2026-06-11.csv` — and refits the model in-process. It reads no prediction file, and it does not read `wc26_actual_results.csv`. In `results.csv` the latest match carrying a score is **11 June 2026**, and the number of scored rows after that date is **zero**; `features.csv` derives from those same played rows and ends on the same date; the FIFA snapshot is dated 11 June. **No tournament result is reachable from the simulator's inputs.** It cannot have fitted to, or been tuned against, an outcome it reports.
 
    *The design choices are not clean.* The bracket-seeding approximation and the draw-resolution rule were chosen by someone who already knew how the tournament had gone. Nothing in the data leaks, but the structure around it was picked with hindsight, and no audit of the inputs can rule that out. The "How the real tournament went" comparison above should be read with that in mind.
-4. **Git commit dates are author-set metadata — evidence, not proof.** See the section above: no server-side timestamp attests the 13 June date, because the commit reached GitHub only on 18 September. A backdated commit cannot be ruled out from the repository alone.
+4. **Git commit dates are author-set metadata. They are evidence, not proof.** No server-side timestamp attests the 13 June date. A backdated commit cannot be ruled out from the repository alone.
 
-   `32ffb4c`'s *committer* date is 18 September because it was replayed by a rebase, which the local reflog records directly:
-
-   ```
-   eaddeb6 HEAD@{2026-09-18 15:41:00 +0200}: rebase (start): checkout WORLDCUP-2026/main
-   32ffb4c HEAD@{2026-09-18 15:41:00 +0200}: rebase (pick): final ensemble: multinomial logistic regression and poisson
-   ```
-
-   The pre-rebase original `f296b05` still exists locally with both dates at 13 June and an identical `predictions.csv` blob, which is what makes the rebase — rather than a later edit — the explanation for the committer date.
+   The committer date of `99a2305` is 18 September because the commit was replayed by a rebase that day. The author's local reflog records that rebase under the pre-rewrite hashes (`eaddeb6` and `32ffb4c`). The pre-rebase original still exists locally with both dates at 13 June and an identical `predictions.csv` blob. That is why the rebase, rather than a later edit, explains the committer date.
 
 ### The post-news columns are an annotation, not the forecast
 
@@ -245,7 +235,7 @@ A run either produces a real forecast or fails loudly. `--live` makes a minimal 
 - **Pipeline** — 11 stages, data cleaning through tournament scoring, run end to end by `python run_pipeline.py`.
 - **Model** — the Step-3 ensemble (0.3 Dixon-Coles Poisson + 0.7 multinomial logit, T = 0.95), 0.9024 walk-forward log-loss on ~49k historical matches.
 - **Result** — 0.8851 log-loss, 0.5248 Brier, 61.8% accuracy over the 68 group-stage fixtures that kicked off after the forecast was committed, against 0.9176 for an Elo-only baseline and 1.0986 for a uniform prior. On a paired bootstrap the edge over Elo alone is not statistically distinguishable; the margin over the uniform prior is. See [How it actually did](#how-it-actually-did).
-- **Provenance** — `data/predictions.csv` is frozen, its `p_*_pre` columns pinned by test to the model run in `32ffb4c`. The scheduled news refresh is retired. Leakage caveats are listed rather than argued away, including the limits of what git dates can prove.
+- **Provenance** — `data/predictions.csv` is frozen, its `p_*_pre` columns pinned by test to the model run in `99a2305`. The scheduled news refresh is retired. Leakage caveats are listed rather than argued away, including the limits of what git dates can prove.
 - **Tests** — 31 in `tests/`, no network calls: output schemas, frozen-forecast provenance, the scoring exclusion rule, the paired bootstrap against synthetic cases with known answers, and the team-news failure paths.
 - Single entry point, `requirements.txt` with minimum versions, dev deps split into `requirements-dev.txt`, MIT license.
 - Tests run in GitHub Actions on every push and pull request.

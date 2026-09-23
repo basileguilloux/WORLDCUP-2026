@@ -13,7 +13,7 @@ paths inside each script (e.g. "data/raw/results.csv") resolve correctly, and
 directory, src/, on sys.path when that script is the one being executed).
 
 THE TEAM-NEWS STEP IS RETIRED. data/predictions.csv is the frozen forecast:
-its p_*_pre columns are bit-identical to the model run committed in 32ffb4c on
+its p_*_pre columns are bit-identical to the model run committed in 99a2305 on
 13 June 2026, and no run from here may rewrite it. --news is kept only to fail loudly and
 explain why, pointing at the one deliberate override; the pipeline itself has
 no way to pass that override through.
@@ -48,7 +48,7 @@ NEWS_STEP = ("09_team_news.py", "data/predictions.csv")
 FROZEN_REFUSAL = """ERROR: --news is retired and will not run.
 
 data/predictions.csv is the FROZEN forecast. Its p_*_pre columns are
-bit-identical to the model run committed in 32ffb4c on 13 June 2026, and the
+bit-identical to the model run committed in 99a2305 on 13 June 2026, and the
 README documents that provenance. Rewriting the file would destroy it.
 
 There is deliberately no way to override this from run_pipeline.py. If you truly
