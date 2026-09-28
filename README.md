@@ -56,7 +56,7 @@ Run in order from the repo root. `harness.py`, `step2_dixoncoles.py`, `step3_cla
 | 8 | `08_fixture_predictions.py` | `features.csv`, `results.csv`, FIFA ranking | `data/fixture_predictions.csv` |
 | 10 | `10_tournament_sim.py` | `features.csv`, `results.csv`, FIFA ranking | `data/tournament_sim.csv` |
 | 11 | `11_score_tournament.py` | `predictions.csv`, `wc26_actual_results.csv` | *(report only)* — scores the frozen forecast |
-| 12 | `12_blend_backtest.py` | `features.csv`, FIFA ranking history (downloaded) | `data/blend_backtest.csv` — walk-forward of the FIFA blend |
+| 12 | `12_blend_backtest.py` | `features.csv`, `data/raw/fifa_ranking_history.csv` | `data/blend_backtest.csv` — walk-forward of the FIFA blend |
 
 What each output is:
 
@@ -116,7 +116,7 @@ The weights stay as they were, because the frozen forecast was produced with the
 
 On the 68 scored World Cup games (post hoc), the frozen forecast scores 0.8851 and the same model with the blend off scores 0.8934. The difference is −0.0083, 95% CI [−0.0188, +0.0017], not distinguishable from zero.
 
-Every number above is in `data/blend_backtest.csv`, so they can be read without downloading the ranking history. That history is a third-party compilation ([`Dato-Futbol/fifa-ranking`](https://github.com/Dato-Futbol/fifa-ranking), pinned by commit and SHA-256 in `src/fifa_blend.py`), not an official FIFA export.
+Every number above is in `data/blend_backtest.csv`. The ranking history is `data/raw/fifa_ranking_history.csv`, a third-party compilation ([`Dato-Futbol/fifa-ranking`](https://github.com/Dato-Futbol/fifa-ranking), commit `6916929`) rather than an official FIFA export.
 
 ### How it actually did
 
@@ -250,7 +250,7 @@ The overlay was a prediction-time adjustment. It did not retrain the model or ad
 
 ## Data
 
-`data/raw/` holds the inputs: ~49k historical results (played rows have scores, 2026 fixtures have NA), a FIFA ranking snapshot, goalscorers, shootouts, and a former-name mapping so each country's history sits under one current name. `12_blend_backtest.py` also needs the history of FIFA rankings; `src/fifa_blend.py` downloads it to `data/raw/fifa_ranking_history.csv` on first run and checks its hash. That file is git-ignored, since the compilation carries no license. `data/raw/` also holds `wc26_actual_results.csv` — the 72 actual group-stage results, used only for scoring and never as a model input.
+`data/raw/` holds the inputs: ~49k historical results (played rows have scores, 2026 fixtures have NA), a FIFA ranking snapshot, goalscorers, shootouts, and a former-name mapping so each country's history sits under one current name. `fifa_ranking_history.csv` holds every men's FIFA ranking release from December 1992 to September 2024, used only by `12_blend_backtest.py`. `data/raw/` also holds `wc26_actual_results.csv` — the 72 actual group-stage results, used only for scoring and never as a model input.
 
 **Source of `wc26_actual_results.csv`:** the same upstream dataset `results.csv` came from — [`martj42/international_results`](https://github.com/martj42/international_results), file `results.csv` on `master`. Retrieved **2026-09-19T13:34:01Z** from `https://raw.githubusercontent.com/martj42/international_results/master/results.csv` (upstream commit `394fe81893`, dated 2026-08-26T21:56:21Z; sha256 of the download `df35268f8fc341ff7fb93d448b4e40356676ac35300a6b4461fd199a99ac1514`). Lineage was checked rather than assumed: the upstream file has identical columns, the two matches already scored in the frozen `results.csv` agree exactly, and all 70 forecast fixtures matched on `(date, home_team, away_team)` with no ambiguity. **`data/raw/results.csv` was not modified** — its 70 fixture rows remain scoreless, which a test enforces. `data/` holds derived artifacts — the cleaned match table, engineered features, the saved Poisson model, the team-news cache and the four output CSVs above, including `tournament_sim.csv` with the Monte Carlo output described above.
 
@@ -258,7 +258,7 @@ The overlay was a prediction-time adjustment. It did not retrain the model or ad
 
 **Complete.** The forecast was made before the tournament, frozen, and has since been scored against real results.
 
-- **Pipeline** — data cleaning through prediction, run end to end by `python run_pipeline.py`. Scoring (`11`) and the blend backtest (`12`, which downloads data) run separately.
+- **Pipeline** — data cleaning through prediction, run end to end by `python run_pipeline.py`. Scoring (`11`) and the blend backtest (`12`) run separately.
 - **Model** — the Step-3 ensemble (0.3 Dixon-Coles Poisson + 0.7 multinomial logit, T = 0.95), 0.9024 walk-forward log-loss on ~49k historical matches, and neutral to slightly positive with the FIFA blend the forecast used.
 - **Result** — 0.8851 log-loss, 0.5248 Brier, 61.8% accuracy over the 68 group-stage fixtures that kicked off after the forecast was committed, against 0.9176 for an Elo-only baseline and 1.0986 for a uniform prior. On a paired bootstrap the edge over Elo alone is not statistically distinguishable; the margin over the uniform prior is. See [How it actually did](#how-it-actually-did).
 - **Provenance** — `data/predictions.csv` is frozen, its `p_*_pre` columns pinned by test to the model run in `99a2305`. The team-news overlay has been removed. Leakage caveats are listed rather than argued away, including the limits of what git dates can prove.

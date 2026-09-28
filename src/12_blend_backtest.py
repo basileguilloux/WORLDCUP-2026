@@ -39,8 +39,7 @@ fitting/applying the line over every ranked team instead of the top 48.
 Also scores, on the 68 World Cup games in 11_score_tournament.py, the same
 model re-run with the blend switched off.
 
-Writes data/blend_backtest.csv (one row per subset x variant), so the numbers
-can be read without downloading the ranking history.
+Writes data/blend_backtest.csv (one row per subset x variant).
 
 Run:  python src/12_blend_backtest.py
 """

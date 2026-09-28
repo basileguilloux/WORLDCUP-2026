@@ -12,13 +12,12 @@ forecast. The weights were set by hand, not fitted. 12_blend_backtest.py runs
 them through the walk-forward; this module holds the pieces it shares with the
 prediction scripts.
 
-Ranking history: every men's FIFA ranking release from 31 Dec 1992 to 19 Sep
-2024, compiled by github.com/Dato-Futbol/fifa-ranking (file
-ranking_fifa_historical.csv, pinned below by commit and SHA-256). It is not
-redistributed here: fetch_history() downloads it to data/raw/ on first use.
+Ranking history: data/raw/fifa_ranking_history.csv, every men's FIFA ranking
+release from 31 Dec 1992 to 19 Sep 2024, as compiled by
+github.com/Dato-Futbol/fifa-ranking (ranking_fifa_historical.csv at the commit
+below). load_history() checks its SHA-256 so an edited copy fails loudly.
 """
 import hashlib
-import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -28,7 +27,7 @@ BLEND_MIN, BLEND_MAX = 0.2, 0.6
 RECENT_YEARS = 4                      # 08 counts matches since 2022-06-01, ~4 years back
 
 HISTORY_PATH = Path("data/raw/fifa_ranking_history.csv")
-HISTORY_URL = ("https://raw.githubusercontent.com/Dato-Futbol/fifa-ranking/"
+HISTORY_SOURCE = ("https://raw.githubusercontent.com/Dato-Futbol/fifa-ranking/"
                "6916929cc8fbf3bc49a4d21a9670e5992e6a738b/ranking_fifa_historical.csv")
 HISTORY_SHA256 = "d4f4d8d3db8e7560823b31b8db7848e1b85fcd1e1353de1d7e1fbedc6d47226e"
 
@@ -65,13 +64,9 @@ def fifa_to_elo_line(points, elos):
     return a, b
 
 
-def fetch_history(path=HISTORY_PATH):
-    """Download the pinned ranking history if absent, and verify its hash."""
+def check_history(path=HISTORY_PATH):
+    """Verify the ranking history is the pinned file."""
     path = Path(path)
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with urllib.request.urlopen(HISTORY_URL, timeout=60) as r:
-            path.write_bytes(r.read())
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
     if digest != HISTORY_SHA256:
         raise SystemExit(f"{path}: SHA-256 {digest} does not match the pinned {HISTORY_SHA256}")
@@ -80,7 +75,7 @@ def fetch_history(path=HISTORY_PATH):
 
 def load_history():
     """All ranking releases as (date, team, points), team names in results.csv spelling."""
-    h = pd.read_csv(fetch_history(), parse_dates=["date"])
+    h = pd.read_csv(check_history(), parse_dates=["date"])
     h = h[h.total_points.notna() & ~h.team.str.contains(r"\(unranked\)")]
     h = h.assign(team=h.team.replace(FIFA_TO_RESULTS))
     # a rename can collide within one release (none do today); keep the higher entry
