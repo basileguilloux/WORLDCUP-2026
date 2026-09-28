@@ -38,6 +38,7 @@ from scipy.stats import poisson as pois
 
 from harness import load, outcomes, expected_goals, fit
 from step3_classifier import make_clf, match_features, clf_probs, BEST_RHO
+from fifa_blend import blend_weight
 
 N_SIMS = int(sys.argv[1]) if len(sys.argv) > 1 else 20000
 SEED = 20260618
@@ -81,12 +82,11 @@ wc = list(rank.team)
 fifa_pts = dict(zip(rank.team, rank.fifa_points))
 a, b = np.polyfit([fifa_pts[t] for t in wc], [elo[t] for t in wc], 1)
 fifa_elo = {t: a * fifa_pts[t] + b for t in wc}
-blend_w = lambda t: float(np.clip(10 / (10 + recent[t]), 0.2, 0.6))
 strength = defaultdict(lambda: START)
 for t in set(list(elo) + wc):
     s = elo[t]
     if t in fifa_elo:
-        w = blend_w(t); s = (1 - w) * elo[t] + w * fifa_elo[t]
+        w = blend_weight(recent[t]); s = (1 - w) * elo[t] + w * fifa_elo[t]
     strength[t] = s
 
 # ---------------------------------------------------------------- 2. models

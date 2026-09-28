@@ -7,3 +7,5 @@ venv/
 *.log
 .env
 
+# downloaded by src/fifa_blend.py (third-party, unlicensed; pinned by SHA-256)
+data/raw/fifa_ranking_history.csv

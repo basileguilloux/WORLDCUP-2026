@@ -1,0 +1,27 @@
+subset,variant,n,log_loss_raw,log_loss_variant,diff,ci_low,ci_high
+all test matches,"shipped rule clip(10/(10+n),0.2,0.6)",41170,0.902365,0.902172,-0.000193,-0.000364,-2.3e-05
+all test matches,constant w=0.2,41170,0.902365,0.902167,-0.000197,-0.000362,-3.4e-05
+all test matches,constant w=0.4,41170,0.902365,0.902263,-0.000102,-0.000431,0.000225
+all test matches,constant w=0.6,41170,0.902365,0.902656,0.000292,-0.0002,0.000782
+with a FIFA release,"shipped rule clip(10/(10+n),0.2,0.6)",29972,0.89012,0.889855,-0.000265,-0.000501,-2.6e-05
+with a FIFA release,constant w=0.2,29972,0.89012,0.889849,-0.000271,-0.000496,-4e-05
+with a FIFA release,constant w=0.4,29972,0.89012,0.88998,-0.00014,-0.000591,0.00032
+with a FIFA release,constant w=0.6,29972,0.89012,0.890521,0.000401,-0.000276,0.001089
+both teams blended,"shipped rule clip(10/(10+n),0.2,0.6)",5266,1.011557,1.010358,-0.001199,-0.002221,-0.000188
+both teams blended,constant w=0.2,5266,1.011557,1.010382,-0.001175,-0.002167,-0.000202
+both teams blended,constant w=0.4,5266,1.011557,1.010476,-0.001081,-0.003061,0.000862
+both teams blended,constant w=0.6,5266,1.011557,1.011885,0.000328,-0.00264,0.003236
+"both blended, major finals","shipped rule clip(10/(10+n),0.2,0.6)",1167,0.993675,0.99175,-0.001925,-0.004251,0.000256
+"both blended, major finals",constant w=0.2,1167,0.993675,0.991852,-0.001823,-0.004097,0.000307
+"both blended, major finals",constant w=0.4,1167,0.993675,0.991569,-0.002106,-0.006645,0.002163
+"both blended, major finals",constant w=0.6,1167,0.993675,0.992845,-0.00083,-0.00764,0.005598
+"both blended, release before Aug 2018","shipped rule clip(10/(10+n),0.2,0.6)",4213,1.013721,1.012611,-0.00111,-0.002248,1.1e-05
+"both blended, release before Aug 2018",constant w=0.2,4213,1.013721,1.01265,-0.001071,-0.002169,-7e-06
+"both blended, release before Aug 2018",constant w=0.4,4213,1.013721,1.01288,-0.000841,-0.003018,0.001283
+"both blended, release before Aug 2018",constant w=0.6,4213,1.013721,1.014459,0.000738,-0.002527,0.003924
+"both blended, release from Aug 2018","shipped rule clip(10/(10+n),0.2,0.6)",1053,1.002899,1.001344,-0.001555,-0.003669,0.000566
+"both blended, release from Aug 2018",constant w=0.2,1053,1.002899,1.001306,-0.001593,-0.003676,0.000505
+"both blended, release from Aug 2018",constant w=0.4,1053,1.002899,1.000857,-0.002041,-0.006202,0.002173
+"both blended, release from Aug 2018",constant w=0.6,1053,1.002899,1.001589,-0.00131,-0.007505,0.004995
+"both teams blended, line over all ranked teams","shipped rule, all ranked teams",27912,0.890762,0.891117,0.000355,-0.000441,0.001164
+WC 2026 scored group games (post hoc),frozen forecast (shipped rule),68,0.893387,0.885066,-0.008321,-0.018824,0.001698

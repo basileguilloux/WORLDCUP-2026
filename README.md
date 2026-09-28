@@ -3,7 +3,7 @@
 ## TL;DR
 
 - Predicts the 3-way 90-minute result (away win, draw, home win) for the 2026 World Cup. The model blends Elo, a Dixon-Coles Poisson component and a multinomial logit, then calibrates the blend with a temperature.
-- Backtest: 0.9024 walk-forward log-loss on about 49k matches, against 1.0510 for the naive base rate. This is the main claim.
+- Backtest: 0.9024 walk-forward log-loss on about 49k matches, against 1.0510 for the naive base rate. This is the main claim. The forecast also mixes the FIFA ranking into each team's Elo at prediction time. That blend has its own backtest, and its effect is neutral to slightly positive: −0.0012 log-loss on the 5,266 matches where it applies to both teams. See [The FIFA-ranking blend](#the-fifa-ranking-blend).
 - Tournament check: on the 68 group games played after the forecast commit the log-loss is 0.8851, against 0.9176 for an Elo-only model. A paired bootstrap says that edge is not distinguishable from zero. The margin over a uniform prior (1.0986) is.
 - Provenance caveat: no server saw the forecast commit before 18 September, so its 13 June date rests on local git metadata. History was rewritten on 23 September 2026 to remove an internal notes file, which changed every commit hash. The real guarantee is that the inputs contain no result after 11 June. See "The frozen forecast" and "Leakage caveats" below.
 
@@ -56,6 +56,7 @@ Run in order from the repo root. `harness.py`, `step2_dixoncoles.py`, `step3_cla
 | 8 | `08_fixture_predictions.py` | `features.csv`, `results.csv`, FIFA ranking | `data/fixture_predictions.csv` |
 | 10 | `10_tournament_sim.py` | `features.csv`, `results.csv`, FIFA ranking | `data/tournament_sim.csv` |
 | 11 | `11_score_tournament.py` | `predictions.csv`, `wc26_actual_results.csv` | *(report only)* — scores the frozen forecast |
+| 12 | `12_blend_backtest.py` | `features.csv`, FIFA ranking history (downloaded) | `data/blend_backtest.csv` — walk-forward of the FIFA blend |
 
 What each output is:
 
@@ -81,6 +82,41 @@ Walk-forward log-loss (5-fold, ~49k matches — lower is better):
 | **Step-3 ensemble (final)** | **0.9024** |
 
 Most of the gain comes from predicting the 3-way label directly rather than from the Dixon-Coles correction, which is worth only ~0.003 on its own.
+
+### The FIFA-ranking blend
+
+The table above scores the ensemble fed **raw Elo**. The forecast did not feed it raw Elo. `08_fixture_predictions.py` and `10_tournament_sim.py` keep the models trained on raw Elo, but at prediction time they replace each World Cup team's Elo with a mix of Elo and the FIFA ranking:
+
+- FIFA points are mapped onto the Elo scale by a least-squares line fitted over the 48 teams;
+- `strength = (1 - w) * elo + w * fifa_elo`, with `w = clip(10 / (10 + recent), 0.2, 0.6)` and `recent` the team's matches since June 2022.
+
+Those weights were set by hand and never tested, so the 0.9024 did not cover the model that produced the forecast. `src/12_blend_backtest.py` runs the blend through the same 5-fold walk-forward, using every FIFA release from December 1992 to September 2024. The models are still trained on raw Elo. Each test match uses the latest release before its date, if it is at most a year old. The FIFA-to-Elo line is fitted per match date over that release's top 48 teams, and the blend is applied to those teams only. Top 48 of a release is a stand-in for the 48 World Cup teams, not the same set: the World Cup field includes teams ranked well outside the top 48.
+
+**The top-48 set and the shipped weight rule were fixed before any result was seen**, because they mirror what `08` does. Every other variant below is sensitivity and was not chosen from.
+
+**Result: neutral to slightly positive.** The one subset with a clear effect is the 5,266 test matches where both teams were blended: 1.0116 → 1.0104, a gain of 0.0012.
+
+All rows are pooled per-match log-loss, with a paired-bootstrap 95% interval for (blended − raw) on the same matches. The five test folds are the same size, so pooling gives the same 0.9024 as the fold average in the table above.
+
+| Test matches | n | raw Elo | shipped blend | blended − raw, 95% CI |
+|---|---|---|---|---|
+| All | 41,170 | 0.9024 | 0.9022 | −0.0002 [−0.0004, −0.0000] |
+| With a FIFA release under a year old | 29,972 | 0.8901 | 0.8899 | −0.0003 [−0.0005, −0.0000] |
+| **Both teams blended** | **5,266** | **1.0116** | **1.0104** | **−0.0012 [−0.0022, −0.0002]** |
+| … major-tournament finals | 1,167 | 0.9937 | 0.9917 | −0.0019 [−0.0043, +0.0003] |
+| … release before Aug 2018 | 4,213 | 1.0137 | 1.0126 | −0.0011 [−0.0022, +0.0000] |
+| … release from Aug 2018 | 1,053 | 1.0029 | 1.0013 | −0.0016 [−0.0037, +0.0006] |
+
+- **The "All" row is diluted by design.** 27% of test matches have no release under a year old: all of fold 1 (1970–88) and part of fold 2 predate the first ranking, and the history ends in September 2024. Most of the rest involve at least one team outside the top 48, which the blend leaves alone. Its 0.0002 is the 5,266-match effect spread thin, not an independent finding.
+- **The gain does not come from one ranking method.** FIFA changed its method in August 2018. Refitting the line per release absorbs the change of scale. The gain is similar before (−0.0011) and after (−0.0016); neither half is significant alone.
+- **The hand-set rule adds nothing over a constant.** `w = 0.2` scores the same on every subset. `w = 0.6` is no better than raw Elo.
+- **The team set matters.** Fitting and applying the line over every ranked team, instead of the top 48, removes the gain: 0.8908 → 0.8911 on 27,912 matches, +0.0004 [−0.0004, +0.0012].
+
+The weights stay as they were, because the frozen forecast was produced with them.
+
+On the 68 scored World Cup games (post hoc), the frozen forecast scores 0.8851 and the same model with the blend off scores 0.8934. The difference is −0.0083, 95% CI [−0.0188, +0.0017], not distinguishable from zero.
+
+Every number above is in `data/blend_backtest.csv`, so they can be read without downloading the ranking history. That history is a third-party compilation ([`Dato-Futbol/fifa-ranking`](https://github.com/Dato-Futbol/fifa-ranking), pinned by commit and SHA-256 in `src/fifa_blend.py`), not an official FIFA export.
 
 ### How it actually did
 
@@ -214,7 +250,7 @@ The overlay was a prediction-time adjustment. It did not retrain the model or ad
 
 ## Data
 
-`data/raw/` holds the inputs: ~49k historical results (played rows have scores, 2026 fixtures have NA), a FIFA ranking snapshot, goalscorers, shootouts, and a former-name mapping so each country's history sits under one current name. It also holds `wc26_actual_results.csv` — the 72 actual group-stage results, used only for scoring and never as a model input.
+`data/raw/` holds the inputs: ~49k historical results (played rows have scores, 2026 fixtures have NA), a FIFA ranking snapshot, goalscorers, shootouts, and a former-name mapping so each country's history sits under one current name. `12_blend_backtest.py` also needs the history of FIFA rankings; `src/fifa_blend.py` downloads it to `data/raw/fifa_ranking_history.csv` on first run and checks its hash. That file is git-ignored, since the compilation carries no license. `data/raw/` also holds `wc26_actual_results.csv` — the 72 actual group-stage results, used only for scoring and never as a model input.
 
 **Source of `wc26_actual_results.csv`:** the same upstream dataset `results.csv` came from — [`martj42/international_results`](https://github.com/martj42/international_results), file `results.csv` on `master`. Retrieved **2026-09-19T13:34:01Z** from `https://raw.githubusercontent.com/martj42/international_results/master/results.csv` (upstream commit `394fe81893`, dated 2026-08-26T21:56:21Z; sha256 of the download `df35268f8fc341ff7fb93d448b4e40356676ac35300a6b4461fd199a99ac1514`). Lineage was checked rather than assumed: the upstream file has identical columns, the two matches already scored in the frozen `results.csv` agree exactly, and all 70 forecast fixtures matched on `(date, home_team, away_team)` with no ambiguity. **`data/raw/results.csv` was not modified** — its 70 fixture rows remain scoreless, which a test enforces. `data/` holds derived artifacts — the cleaned match table, engineered features, the saved Poisson model, the team-news cache and the four output CSVs above, including `tournament_sim.csv` with the Monte Carlo output described above.
 
@@ -222,11 +258,11 @@ The overlay was a prediction-time adjustment. It did not retrain the model or ad
 
 **Complete.** The forecast was made before the tournament, frozen, and has since been scored against real results.
 
-- **Pipeline** — 11 stages, data cleaning through tournament scoring, run end to end by `python run_pipeline.py`.
-- **Model** — the Step-3 ensemble (0.3 Dixon-Coles Poisson + 0.7 multinomial logit, T = 0.95), 0.9024 walk-forward log-loss on ~49k historical matches.
+- **Pipeline** — data cleaning through prediction, run end to end by `python run_pipeline.py`. Scoring (`11`) and the blend backtest (`12`, which downloads data) run separately.
+- **Model** — the Step-3 ensemble (0.3 Dixon-Coles Poisson + 0.7 multinomial logit, T = 0.95), 0.9024 walk-forward log-loss on ~49k historical matches, and neutral to slightly positive with the FIFA blend the forecast used.
 - **Result** — 0.8851 log-loss, 0.5248 Brier, 61.8% accuracy over the 68 group-stage fixtures that kicked off after the forecast was committed, against 0.9176 for an Elo-only baseline and 1.0986 for a uniform prior. On a paired bootstrap the edge over Elo alone is not statistically distinguishable; the margin over the uniform prior is. See [How it actually did](#how-it-actually-did).
 - **Provenance** — `data/predictions.csv` is frozen, its `p_*_pre` columns pinned by test to the model run in `99a2305`. The team-news overlay has been removed. Leakage caveats are listed rather than argued away, including the limits of what git dates can prove.
-- **Tests** — in `tests/`, no network calls: output schemas, frozen-forecast provenance, the scoring exclusion rule and the paired bootstrap against synthetic cases with known answers.
+- **Tests** — in `tests/`, no network calls: output schemas, frozen-forecast provenance, the scoring exclusion rule, the paired bootstrap against synthetic cases with known answers, the FIFA blend (08 with the blend on reproduces the frozen forecast) and the seeded tournament simulation reproducing its committed output.
 - Single entry point, `requirements.txt` with minimum versions, dev deps split into `requirements-dev.txt`, MIT license.
 - Tests run in GitHub Actions on every push and pull request.
 
