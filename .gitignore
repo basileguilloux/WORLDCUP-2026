@@ -7,5 +7,3 @@ venv/
 *.log
 .env
 
-# throwaway dry-run output of 09_team_news.py (offline, cache-only)
-data/predictions_offline.csv

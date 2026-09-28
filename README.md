@@ -159,11 +159,11 @@ Provenance is checked in CI-able form by `tests/test_frozen_forecast.py`, which 
 
 Before the rewrite the forecast commit reached GitHub only on 18 September, 90 days after its author date. So no server ever saw it before the tournament ended.
 
-What remains is local evidence. All of it was produced on the same machine and all of it could be forged.
+What remains is local evidence. All of it was produced on the same machine and all of it could be forged. Only the first item below can be checked from a clone of this repository. The other two are the author's account of objects that were never pushed: the pre-rewrite commits (`f296b05`, `eaddeb6`, `32ffb4c`) and the reflog are not in the published history, and a fresh clone has neither.
 
 - The **author date** of `99a2305` is 13 June 2026 12:09:22 +02:00. Author dates are plain metadata and can be set to any value.
-- A pre-rebase original of the commit, `f296b05` in the pre-rewrite history, is still in the author's local object store. Its **committer date matches its author date**. Its `data/predictions.csv` blob is byte-identical to the one in `99a2305`.
-- The author's local **reflog** records that original at `HEAD@{2026-06-13 12:09:22 +0200}`. Git writes reflog timestamps at the moment of the operation, so they are not author-set. They are local only and can be edited.
+- *Not verifiable from a clone.* The author reports that a pre-rebase original of the commit, `f296b05` in the pre-rewrite history, is kept in a local copy of the original repository. Its **committer date matches its author date**. Its `data/predictions.csv` blob is byte-identical to the one in `99a2305`.
+- *Not verifiable from a clone.* The author reports that the local **reflog** of that copy records that original at `HEAD@{2026-06-13 12:09:22 +0200}`. Git writes reflog timestamps at the moment of the operation, so they are not author-set. They are local only and can be edited.
 
 Independent of any date, and worth more than all of the above:
 
@@ -191,7 +191,7 @@ These are stated plainly rather than argued away.
    *The design choices are not clean.* The bracket-seeding approximation and the draw-resolution rule were chosen by someone who already knew how the tournament had gone. Nothing in the data leaks, but the structure around it was picked with hindsight, and no audit of the inputs can rule that out. The "How the real tournament went" comparison above should be read with that in mind.
 4. **Git commit dates are author-set metadata. They are evidence, not proof.** No server-side timestamp attests the 13 June date. A backdated commit cannot be ruled out from the repository alone.
 
-   The committer date of `99a2305` is 18 September because the commit was replayed by a rebase that day. The author's local reflog records that rebase under the pre-rewrite hashes (`eaddeb6` and `32ffb4c`). The pre-rebase original still exists locally with both dates at 13 June and an identical `predictions.csv` blob. That is why the rebase, rather than a later edit, explains the committer date.
+   The committer date of `99a2305` is 18 September because the commit was replayed by a rebase that day. According to the author, the reflog of their local copy of the original repository records that rebase under the pre-rewrite hashes (`eaddeb6` and `32ffb4c`), and the pre-rebase original has both dates at 13 June and an identical `predictions.csv` blob. That is the author's explanation for the committer date. None of those objects are in the published history, so a reader cannot check it.
 
 ### The post-news columns are an annotation, not the forecast
 
