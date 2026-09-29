@@ -1,0 +1,28 @@
+# Exact versions of an environment that passes every test and regenerates the
+# committed title-odds backtest outputs byte for byte. Built in a fresh Python
+# 3.13.7 venv on 29 September 2026.
+# CI installs this file. requirements.txt keeps the looser minimum versions.
+#   python3.13 -m venv .venv && .venv/bin/pip install -r requirements-lock.txt
+cloudpickle==3.1.2
+contourpy==1.4.0
+cycler==0.12.1
+fonttools==4.66.0
+iniconfig==2.3.0
+joblib==1.6.0
+kiwisolver==1.5.1
+matplotlib==3.11.2
+narwhals==2.26.0
+numpy==2.5.3
+packaging==26.3
+pandas==3.0.5
+pillow==12.3.0
+pluggy==1.6.0
+pyarrow==25.0.1
+Pygments==2.21.0
+pyparsing==3.3.3
+pytest==9.1.1
+python-dateutil==2.9.0.post0
+scikit-learn==1.9.1
+scipy==1.18.1
+six==1.17.0
+threadpoolctl==3.7.0
