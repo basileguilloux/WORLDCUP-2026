@@ -18,7 +18,7 @@ import joblib
 HOSTS = {"United States", "Mexico", "Canada"}
 N, START, HOME_ADV = 5, 1500.0, 60.0
 RECENT_CUTOFF = pd.Timestamp("2022-06-01")     # "recent" = last ~4 years
-model = joblib.load("data/poisson_model.joblib")
+model = joblib.load("data/build/poisson_model.joblib")   # refit by 05_model.py
 
 # --- load + clean matches ---
 df = pd.read_csv("data/raw/results.csv", parse_dates=["date"])

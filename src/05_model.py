@@ -13,6 +13,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.metrics import accuracy_score, log_loss
 import joblib
+from pathlib import Path
+
+# data/poisson_model.joblib is the frozen artifact committed with the forecast
+# (99a2305). This script never overwrites it: the refit goes to a git-ignored
+# build path, which 06_simulate.py and 07_blend_predict.py read.
+REFIT = Path("data/build/poisson_model.joblib")
 
 df = pd.read_csv("data/features.csv", parse_dates=["date"])
 
@@ -59,5 +65,6 @@ print("Phase 3 - Poisson model, tested on 2022+ matches:")
 print(f"  accuracy : {accuracy_score(ytrue, probs.argmax(1)):.3f}   (Elo-only baseline was 0.576)")
 print(f"  log-loss : {log_loss(ytrue, probs, labels=[0,1,2]):.3f}   (Elo-only baseline was 0.915)")
 
-joblib.dump(model, "data/poisson_model.joblib")
-print("\nsaved data/poisson_model.joblib")
+REFIT.parent.mkdir(parents=True, exist_ok=True)
+joblib.dump(model, REFIT)
+print(f"\nsaved {REFIT}  (data/poisson_model.joblib is the frozen copy, left untouched)")

@@ -27,7 +27,7 @@ STEPS = [
     ("02_elo.py", "data/processed_matches.csv"),
     ("03_elo_baseline.py", None),
     ("04_features.py", "data/features.csv"),
-    ("05_model.py", "data/poisson_model.joblib"),
+    ("05_model.py", "data/build/poisson_model.joblib"),
     ("eval_baseline.py", None),
     ("harness.py", None),
     ("step2_dixoncoles.py", None),

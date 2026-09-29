@@ -13,7 +13,7 @@ import joblib
 
 HOSTS = {"United States", "Mexico", "Canada"}
 N, START, HOME_ADV = 5, 1500.0, 60.0
-model = joblib.load("data/poisson_model.joblib")
+model = joblib.load("data/build/poisson_model.joblib")   # refit by 05_model.py
 
 # --- load + clean all matches (same recipe as before) ---
 df = pd.read_csv("data/raw/results.csv", parse_dates=["date"])
