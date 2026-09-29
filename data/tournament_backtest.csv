@@ -1,0 +1,225 @@
+tournament,model,metric,value,ci_low,ci_high,bootstrap,n
+World Cup 2006,full,rps,0.09386,,,,
+World Cup 2010,full,rps,0.089853,,,,
+World Cup 2014,full,rps,0.095634,,,,
+World Cup 2018,full,rps,0.105475,,,,
+World Cup 2022,full,rps,0.100908,,,,
+Euro 2008,full,rps,0.134555,,,,
+Euro 2012,full,rps,0.125998,,,,
+Euro 2016,full,rps,0.120038,,,,
+Euro 2020,full,rps,0.09231,,,,
+Euro 2024,full,rps,0.11056,,,,
+ALL,full,rps,0.106919,0.098251,0.116179,tournament,10.0
+World Cup 2006,full,champion_log_score,3.318696,,,,
+World Cup 2010,full,champion_log_score,1.322006,,,,
+World Cup 2014,full,champion_log_score,2.308603,,,,
+World Cup 2018,full,champion_log_score,2.993734,,,,
+World Cup 2022,full,champion_log_score,1.339029,,,,
+Euro 2008,full,champion_log_score,2.03027,,,,
+Euro 2012,full,champion_log_score,0.850737,,,,
+Euro 2016,full,champion_log_score,2.578339,,,,
+Euro 2020,full,champion_log_score,2.354932,,,,
+Euro 2024,full,champion_log_score,2.186581,,,,
+ALL,full,champion_log_score,2.128293,1.676268,2.578751,tournament,10.0
+World Cup 2006,full,sf_brier,0.084897,,,,
+World Cup 2010,full,sf_brier,0.07791,,,,
+World Cup 2014,full,sf_brier,0.058338,,,,
+World Cup 2018,full,sf_brier,0.111877,,,,
+World Cup 2022,full,sf_brier,0.100737,,,,
+Euro 2008,full,sf_brier,0.18293,,,,
+Euro 2012,full,sf_brier,0.146716,,,,
+Euro 2016,full,sf_brier,0.099738,,,,
+Euro 2020,full,sf_brier,0.092184,,,,
+Euro 2024,full,sf_brier,0.090601,,,,
+ALL,full,sf_brier,0.104593,0.085152,0.127241,tournament,10.0
+World Cup 2006,no_blend,rps,0.092459,,,,
+World Cup 2010,no_blend,rps,0.089246,,,,
+World Cup 2014,no_blend,rps,0.094632,,,,
+World Cup 2018,no_blend,rps,0.105364,,,,
+World Cup 2022,no_blend,rps,0.102333,,,,
+Euro 2008,no_blend,rps,0.135721,,,,
+Euro 2012,no_blend,rps,0.127611,,,,
+Euro 2016,no_blend,rps,0.121962,,,,
+Euro 2020,no_blend,rps,0.09161,,,,
+Euro 2024,no_blend,rps,0.110856,,,,
+ALL,no_blend,rps,0.107179,0.097926,0.117013,tournament,10.0
+World Cup 2006,no_blend,champion_log_score,3.288762,,,,
+World Cup 2010,no_blend,champion_log_score,1.299383,,,,
+World Cup 2014,no_blend,champion_log_score,2.30559,,,,
+World Cup 2018,no_blend,champion_log_score,3.030324,,,,
+World Cup 2022,no_blend,champion_log_score,1.270825,,,,
+Euro 2008,no_blend,champion_log_score,2.07068,,,,
+Euro 2012,no_blend,champion_log_score,0.832639,,,,
+Euro 2016,no_blend,champion_log_score,2.7774,,,,
+Euro 2020,no_blend,champion_log_score,2.255702,,,,
+Euro 2024,no_blend,champion_log_score,2.093946,,,,
+ALL,no_blend,champion_log_score,2.122525,1.65448,2.589429,tournament,10.0
+World Cup 2006,no_blend,sf_brier,0.084241,,,,
+World Cup 2010,no_blend,sf_brier,0.076049,,,,
+World Cup 2014,no_blend,sf_brier,0.054667,,,,
+World Cup 2018,no_blend,sf_brier,0.113813,,,,
+World Cup 2022,no_blend,sf_brier,0.10258,,,,
+Euro 2008,no_blend,sf_brier,0.184671,,,,
+Euro 2012,no_blend,sf_brier,0.147374,,,,
+Euro 2016,no_blend,sf_brier,0.099286,,,,
+Euro 2020,no_blend,sf_brier,0.089734,,,,
+Euro 2024,no_blend,sf_brier,0.090204,,,,
+ALL,no_blend,sf_brier,0.104262,0.083889,0.127682,tournament,10.0
+World Cup 2006,elo_only,rps,0.093296,,,,
+World Cup 2010,elo_only,rps,0.090306,,,,
+World Cup 2014,elo_only,rps,0.095447,,,,
+World Cup 2018,elo_only,rps,0.111131,,,,
+World Cup 2022,elo_only,rps,0.100346,,,,
+Euro 2008,elo_only,rps,0.141534,,,,
+Euro 2012,elo_only,rps,0.133473,,,,
+Euro 2016,elo_only,rps,0.131433,,,,
+Euro 2020,elo_only,rps,0.094199,,,,
+Euro 2024,elo_only,rps,0.108552,,,,
+ALL,elo_only,rps,0.109972,0.099323,0.121408,tournament,10.0
+World Cup 2006,elo_only,champion_log_score,3.049133,,,,
+World Cup 2010,elo_only,champion_log_score,1.741256,,,,
+World Cup 2014,elo_only,champion_log_score,2.249993,,,,
+World Cup 2018,elo_only,champion_log_score,2.752002,,,,
+World Cup 2022,elo_only,champion_log_score,1.286268,,,,
+Euro 2008,elo_only,champion_log_score,2.530741,,,,
+Euro 2012,elo_only,champion_log_score,0.939304,,,,
+Euro 2016,elo_only,champion_log_score,3.405205,,,,
+Euro 2020,elo_only,champion_log_score,2.476938,,,,
+Euro 2024,elo_only,champion_log_score,1.763172,,,,
+ALL,elo_only,champion_log_score,2.219401,1.755753,2.672509,tournament,10.0
+World Cup 2006,elo_only,sf_brier,0.090713,,,,
+World Cup 2010,elo_only,sf_brier,0.073674,,,,
+World Cup 2014,elo_only,sf_brier,0.053362,,,,
+World Cup 2018,elo_only,sf_brier,0.135128,,,,
+World Cup 2022,elo_only,sf_brier,0.104721,,,,
+Euro 2008,elo_only,sf_brier,0.192935,,,,
+Euro 2012,elo_only,sf_brier,0.147187,,,,
+Euro 2016,elo_only,sf_brier,0.100755,,,,
+Euro 2020,elo_only,sf_brier,0.10162,,,,
+Euro 2024,elo_only,sf_brier,0.090515,,,,
+ALL,elo_only,sf_brier,0.109061,0.086763,0.134233,tournament,10.0
+World Cup 2006,uniform,rps,0.127368,,,,
+World Cup 2010,uniform,rps,0.126803,,,,
+World Cup 2014,uniform,rps,0.127121,,,,
+World Cup 2018,uniform,rps,0.12682,,,,
+World Cup 2022,uniform,rps,0.126821,,,,
+Euro 2008,uniform,rps,0.152098,,,,
+Euro 2012,uniform,rps,0.151965,,,,
+Euro 2016,uniform,rps,0.140381,,,,
+Euro 2020,uniform,rps,0.139574,,,,
+Euro 2024,uniform,rps,0.139743,,,,
+ALL,uniform,rps,0.135869,0.129667,0.142138,tournament,10.0
+World Cup 2006,uniform,champion_log_score,3.464137,,,,
+World Cup 2010,uniform,champion_log_score,3.432688,,,,
+World Cup 2014,uniform,champion_log_score,3.519981,,,,
+World Cup 2018,uniform,champion_log_score,3.432688,,,,
+World Cup 2022,uniform,champion_log_score,3.483493,,,,
+Euro 2008,uniform,champion_log_score,2.77419,,,,
+Euro 2012,uniform,champion_log_score,2.764621,,,,
+Euro 2016,uniform,champion_log_score,3.249335,,,,
+Euro 2020,uniform,champion_log_score,3.148883,,,,
+Euro 2024,uniform,champion_log_score,3.174859,,,,
+ALL,uniform,champion_log_score,3.244487,3.071567,3.399838,tournament,10.0
+World Cup 2006,uniform,sf_brier,0.109833,,,,
+World Cup 2010,uniform,sf_brier,0.109282,,,,
+World Cup 2014,uniform,sf_brier,0.109839,,,,
+World Cup 2018,uniform,sf_brier,0.10909,,,,
+World Cup 2022,uniform,sf_brier,0.108515,,,,
+Euro 2008,uniform,sf_brier,0.18813,,,,
+Euro 2012,uniform,sf_brier,0.187993,,,,
+Euro 2016,uniform,sf_brier,0.139839,,,,
+Euro 2020,uniform,sf_brier,0.138575,,,,
+Euro 2024,uniform,sf_brier,0.138358,,,,
+ALL,uniform,sf_brier,0.133946,0.117146,0.152805,tournament,10.0
+ALL,full - no_blend,rps,-0.00026,-0.000963,0.000442,tournament,10.0
+ALL,full - elo_only,rps,-0.003053,-0.005818,-0.000539,tournament,10.0
+ALL,full - uniform,rps,-0.02895,-0.034402,-0.024054,tournament,10.0
+ALL,full - no_blend,champion_log_score,0.005768,-0.050371,0.051371,tournament,10.0
+ALL,full - elo_only,champion_log_score,-0.091109,-0.325703,0.127787,tournament,10.0
+ALL,full - uniform,champion_log_score,-1.116195,-1.534528,-0.712323,tournament,10.0
+ALL,full - no_blend,sf_brier,0.000331,-0.000791,0.00151,tournament,10.0
+ALL,full - elo_only,sf_brier,-0.004468,-0.009897,-2.4e-05,tournament,10.0
+ALL,full - uniform,sf_brier,-0.029353,-0.040422,-0.017117,tournament,10.0
+ALL,full - no_blend,rps,-0.000101,-0.000857,0.000674,team,264.0
+ALL,full - elo_only,rps,-0.002482,-0.005124,6.6e-05,team,264.0
+ALL,full - uniform,rps,-0.029521,-0.040189,-0.019487,team,264.0
+ALL,full,"reliability_predicted[0.0,0.1)",0.028976,,,,617.0
+ALL,full,"reliability_observed[0.0,0.1)",0.024311,,,,617.0
+ALL,no_blend,"reliability_predicted[0.0,0.1)",0.028396,,,,625.0
+ALL,no_blend,"reliability_observed[0.0,0.1)",0.024,,,,625.0
+ALL,elo_only,"reliability_predicted[0.0,0.1)",0.026865,,,,634.0
+ALL,elo_only,"reliability_observed[0.0,0.1)",0.029968,,,,634.0
+ALL,uniform,"reliability_predicted[0.0,0.1)",0.052419,,,,496.0
+ALL,uniform,"reliability_observed[0.0,0.1)",0.052419,,,,496.0
+ALL,full,"reliability_predicted[0.1,0.2)",0.145708,,,,182.0
+ALL,full,"reliability_observed[0.1,0.2)",0.137363,,,,182.0
+ALL,no_blend,"reliability_predicted[0.1,0.2)",0.146197,,,,177.0
+ALL,no_blend,"reliability_observed[0.1,0.2)",0.146893,,,,177.0
+ALL,elo_only,"reliability_predicted[0.1,0.2)",0.145702,,,,177.0
+ALL,elo_only,"reliability_observed[0.1,0.2)",0.163842,,,,177.0
+ALL,uniform,"reliability_predicted[0.1,0.2)",0.136364,,,,264.0
+ALL,uniform,"reliability_observed[0.1,0.2)",0.136364,,,,264.0
+ALL,full,"reliability_predicted[0.2,0.3)",0.248876,,,,126.0
+ALL,full,"reliability_observed[0.2,0.3)",0.214286,,,,126.0
+ALL,no_blend,"reliability_predicted[0.2,0.3)",0.248084,,,,122.0
+ALL,no_blend,"reliability_observed[0.2,0.3)",0.229508,,,,122.0
+ALL,elo_only,"reliability_predicted[0.2,0.3)",0.251141,,,,116.0
+ALL,elo_only,"reliability_observed[0.2,0.3)",0.232759,,,,116.0
+ALL,uniform,"reliability_predicted[0.2,0.3)",0.25,,,,192.0
+ALL,uniform,"reliability_observed[0.2,0.3)",0.25,,,,192.0
+ALL,full,"reliability_predicted[0.3,0.4)",0.353474,,,,88.0
+ALL,full,"reliability_observed[0.3,0.4)",0.397727,,,,88.0
+ALL,no_blend,"reliability_predicted[0.3,0.4)",0.350721,,,,85.0
+ALL,no_blend,"reliability_observed[0.3,0.4)",0.364706,,,,85.0
+ALL,elo_only,"reliability_predicted[0.3,0.4)",0.350515,,,,84.0
+ALL,elo_only,"reliability_observed[0.3,0.4)",0.345238,,,,84.0
+ALL,uniform,"reliability_predicted[0.3,0.4)",0.333333,,,,72.0
+ALL,uniform,"reliability_observed[0.3,0.4)",0.333333,,,,72.0
+ALL,full,"reliability_predicted[0.4,0.5)",0.447796,,,,75.0
+ALL,full,"reliability_observed[0.4,0.5)",0.453333,,,,75.0
+ALL,no_blend,"reliability_predicted[0.4,0.5)",0.449128,,,,81.0
+ALL,no_blend,"reliability_observed[0.4,0.5)",0.444444,,,,81.0
+ALL,elo_only,"reliability_predicted[0.4,0.5)",0.449724,,,,67.0
+ALL,elo_only,"reliability_observed[0.4,0.5)",0.402985,,,,67.0
+ALL,uniform,"reliability_predicted[0.4,0.5)",0.495793,,,,94.0
+ALL,uniform,"reliability_observed[0.4,0.5)",0.489362,,,,94.0
+ALL,full,"reliability_predicted[0.5,0.6)",0.551479,,,,70.0
+ALL,full,"reliability_observed[0.5,0.6)",0.557143,,,,70.0
+ALL,no_blend,"reliability_predicted[0.5,0.6)",0.552526,,,,62.0
+ALL,no_blend,"reliability_observed[0.5,0.6)",0.596774,,,,62.0
+ALL,elo_only,"reliability_predicted[0.5,0.6)",0.547284,,,,69.0
+ALL,elo_only,"reliability_observed[0.5,0.6)",0.507246,,,,69.0
+ALL,uniform,"reliability_predicted[0.5,0.6)",0.504036,,,,98.0
+ALL,uniform,"reliability_observed[0.5,0.6)",0.510204,,,,98.0
+ALL,full,"reliability_predicted[0.6,0.7)",0.645296,,,,46.0
+ALL,full,"reliability_observed[0.6,0.7)",0.630435,,,,46.0
+ALL,no_blend,"reliability_predicted[0.6,0.7)",0.648582,,,,51.0
+ALL,no_blend,"reliability_observed[0.6,0.7)",0.568627,,,,51.0
+ALL,elo_only,"reliability_predicted[0.6,0.7)",0.648647,,,,51.0
+ALL,elo_only,"reliability_observed[0.6,0.7)",0.705882,,,,51.0
+ALL,uniform,"reliability_predicted[0.6,0.7)",0.666667,,,,72.0
+ALL,uniform,"reliability_observed[0.6,0.7)",0.666667,,,,72.0
+ALL,full,"reliability_predicted[0.7,0.8)",0.74623,,,,40.0
+ALL,full,"reliability_observed[0.7,0.8)",0.85,,,,40.0
+ALL,no_blend,"reliability_predicted[0.7,0.8)",0.748547,,,,36.0
+ALL,no_blend,"reliability_observed[0.7,0.8)",0.861111,,,,36.0
+ALL,elo_only,"reliability_predicted[0.7,0.8)",0.756169,,,,35.0
+ALL,elo_only,"reliability_observed[0.7,0.8)",0.742857,,,,35.0
+ALL,uniform,"reliability_predicted[0.7,0.8)",,,,,0.0
+ALL,uniform,"reliability_observed[0.7,0.8)",,,,,0.0
+ALL,full,"reliability_predicted[0.8,0.9)",0.846345,,,,22.0
+ALL,full,"reliability_observed[0.8,0.9)",0.818182,,,,22.0
+ALL,no_blend,"reliability_predicted[0.8,0.9)",0.833508,,,,24.0
+ALL,no_blend,"reliability_observed[0.8,0.9)",0.833333,,,,24.0
+ALL,elo_only,"reliability_predicted[0.8,0.9)",0.845231,,,,29.0
+ALL,elo_only,"reliability_observed[0.8,0.9)",0.862069,,,,29.0
+ALL,uniform,"reliability_predicted[0.8,0.9)",,,,,0.0
+ALL,uniform,"reliability_observed[0.8,0.9)",,,,,0.0
+ALL,full,"reliability_predicted[0.9,1.0)",0.945382,,,,22.0
+ALL,full,"reliability_observed[0.9,1.0)",1.0,,,,22.0
+ALL,no_blend,"reliability_predicted[0.9,1.0)",0.945292,,,,25.0
+ALL,no_blend,"reliability_observed[0.9,1.0)",1.0,,,,25.0
+ALL,elo_only,"reliability_predicted[0.9,1.0)",0.948073,,,,26.0
+ALL,elo_only,"reliability_observed[0.9,1.0)",0.961538,,,,26.0
+ALL,uniform,"reliability_predicted[0.9,1.0)",,,,,0.0
+ALL,uniform,"reliability_observed[0.9,1.0)",,,,,0.0
