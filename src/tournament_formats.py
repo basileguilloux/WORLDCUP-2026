@@ -236,3 +236,53 @@ def knockout_matches(fmt, df):
     """Knockout rows, in date order (after the group stage)."""
     m = matches(fmt, df)
     return m.iloc[6 * len(fmt.groups):]
+
+
+# ---------------------------------------------------------------- ground truth
+def match_winner(row, shootouts):
+    """Winner of a knockout row. results.csv scores include extra time; a draw
+    was settled on penalties and its winner is in shootouts.csv."""
+    if row.home_score > row.away_score:
+        return row.home_team
+    if row.away_score > row.home_score:
+        return row.away_team
+    s = shootouts[(shootouts.date == row.date) & (shootouts.home_team == row.home_team)
+                  & (shootouts.away_team == row.away_team)]
+    assert len(s) == 1, f"no shootout for {row.date.date()} {row.home_team} v {row.away_team}"
+    return s.winner.iloc[0]
+
+
+def knockout_rounds(fmt, df):
+    """The real knockout matches grouped by round, e.g. {"R16": rows, ..., "final": rows}.
+
+    Rounds follow date order. A World Cup third-place playoff is dropped: both
+    its teams already count as semi-finalists.
+    """
+    rows = list(knockout_matches(fmt, df).itertuples())
+    has_playoff = fmt.tournament == "FIFA World Cup"
+    assert len(rows) == 2 ** len(fmt.ko_rounds) - 1 + has_playoff, fmt.name
+    out, i = {}, 0
+    for k, rnd in enumerate(fmt.ko_rounds):
+        size = 2 ** (len(fmt.ko_rounds) - 1 - k)
+        if rnd == "final":
+            out[rnd] = rows[-1:]
+        else:
+            out[rnd] = rows[i:i + size]
+            i += size
+    return out
+
+
+def actual_stages(fmt, df, shootouts):
+    """Stage each team reached, as an index into fmt.stages (0 = group exit)."""
+    teams = {t for ts in fmt.groups.values() for t in ts}
+    stage = dict.fromkeys(teams, 0)
+    rounds = knockout_rounds(fmt, df)
+    for k, rnd in enumerate(fmt.ko_rounds[:-1]):
+        for r in rounds[rnd]:
+            for t in (r.home_team, r.away_team):
+                stage[t] = max(stage[t], k + 1)
+    (final,) = rounds["final"]
+    champion = match_winner(final, shootouts)
+    runner_up = final.away_team if champion == final.home_team else final.home_team
+    stage[runner_up], stage[champion] = len(fmt.ko_rounds), len(fmt.ko_rounds) + 1
+    return stage
