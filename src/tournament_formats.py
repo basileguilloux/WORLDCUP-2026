@@ -220,14 +220,6 @@ BACKTEST = [
 BY_NAME = {f.name: f for f in [WC2026] + BACKTEST}
 
 
-def load_results():
-    """results.csv with former names mapped to current ones, sorted by date."""
-    df = pd.read_csv("data/raw/results.csv", parse_dates=["date"])
-    ren = dict(zip(*[pd.read_csv("data/raw/former_names.csv")[c] for c in ["former", "current"]]))
-    df["home_team"], df["away_team"] = df.home_team.replace(ren), df.away_team.replace(ren)
-    return df.sort_values("date")
-
-
 def matches(fmt, df):
     """All rows of this tournament, in date order."""
     return df[(df.tournament == fmt.tournament)

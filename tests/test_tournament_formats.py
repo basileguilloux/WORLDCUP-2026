@@ -25,12 +25,11 @@ IDS = [f.name for f in tf.BACKTEST]
 
 @pytest.fixture(scope="module")
 def results():
-    cwd = os.getcwd()
-    os.chdir(ROOT)
-    try:
-        return tf.load_results()
-    finally:
-        os.chdir(cwd)
+    df = pd.read_csv(ROOT / "data/raw/results.csv", parse_dates=["date"])
+    names = pd.read_csv(ROOT / "data/raw/former_names.csv")
+    ren = dict(zip(names.former, names.current))
+    df["home_team"], df["away_team"] = df.home_team.replace(ren), df.away_team.replace(ren)
+    return df.sort_values("date")
 
 
 def _components(g):
