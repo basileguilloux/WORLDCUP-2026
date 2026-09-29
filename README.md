@@ -2,10 +2,13 @@
 
 ## TL;DR
 
-- Predicts the 3-way 90-minute result (away win, draw, home win) for the 2026 World Cup. The model blends Elo, a Dixon-Coles Poisson component and a multinomial logit, then calibrates the blend with a temperature.
-- Backtest: 0.9024 walk-forward log-loss on about 49k matches, against 1.0510 for the naive base rate. This is the main claim. The forecast also mixes the FIFA ranking into each team's Elo at prediction time. That blend has its own backtest, and its effect is neutral to slightly positive: −0.0012 log-loss on the 5,266 matches where it applies to both teams. See [The FIFA-ranking blend](#the-fifa-ranking-blend).
-- Tournament check: on the 68 group games played after the forecast commit the log-loss is 0.8851, against 0.9176 for an Elo-only model. A paired bootstrap says that edge is not distinguishable from zero. The margin over a uniform prior (1.0986) is.
-- Provenance caveat: no server saw the forecast commit before 18 September, so its 13 June date rests on local git metadata. History was rewritten on 23 September 2026 to remove an internal notes file, which changed every commit hash. The real guarantee is that the inputs contain no result after 11 June. See "The frozen forecast" and "Leakage caveats" below.
+This project forecasts 2026 World Cup matches and simulates who wins the tournament. It has three parts, and the evidence behind each is different.
+
+1. **Match forecast, frozen before the tournament and scored on 68 real games.** Each match gets a 90-minute home/draw/away probability from an ensemble of Elo, a Dixon-Coles Poisson model and a multinomial logit. Its walk-forward log-loss is 0.9024 on about 49k past matches, against 1.0510 for the base rate. On the 68 group games played after the forecast commit it scored 0.8851, against 0.9176 for Elo alone and 1.0986 for a uniform prior. A paired bootstrap cannot tell the edge over Elo from zero; the margin over the uniform prior is clear. See [How it actually did](#how-it-actually-did).
+2. **Title odds, backtested on 10 past tournaments.** The tournament simulator was run blind on World Cups 2006-2022 and Euros 2008-2024, under a protocol committed before any result existed. On the pre-registered primary metric (RPS over the stage each team reached) it beats Elo alone narrowly: 0.1069 against 0.1100, a difference of −0.0031, 95% CI [−0.0058, −0.0005]. On the log score of the actual champion the two are not distinguishable. The FIFA-ranking blend adds nothing measurable. Both beat a uniform model by a wide margin. See [Title odds backtest](#title-odds-backtest).
+3. **The 2026 winner table is a retrospective illustration.** It was built in September 2026, after the tournament, from data holding no result after 11 June, but with design choices made in hindsight. See [2026 title odds](#2026-title-odds-a-retrospective-illustration).
+
+Provenance: the forecast's 13 June date rests on local git metadata that no server saw before 18 September. The real guarantee is that its inputs contain no result after 11 June. See [The frozen forecast](#the-frozen-forecast) and [docs/PROVENANCE.md](docs/PROVENANCE.md).
 
 Match-outcome prediction for the 2026 FIFA World Cup. The target is the **3-way 90-minute result** — `0 = away win`, `1 = draw`, `2 = home win` — for the ~70 unplayed fixtures in `data/raw/results.csv`. The score itself is not modelled as an output; goals are only an intermediate quantity.
 
@@ -155,7 +158,82 @@ Against the uniform prior the margin is not in doubt: 0.8851 vs 1.0986, with 61.
 
 **On comparing with the 0.9024 backtest.** The tournament figure is nominally better (0.8851), but the two are not on the same footing: the walk-forward number averages over ~49k mostly-lopsided friendlies and qualifiers, while these are World Cup group games between closely matched sides. The fixture mixes differ, so the absolute log-loss levels are not directly comparable, and n = 68 is small regardless. The fair summary is that the model performed in line with expectations, not that it beat its backtest.
 
-## Tournament simulation
+## Title odds backtest
+
+The 2026 title odds further down come from a simulator written in September 2026, after the tournament. On their own they are an illustration, not evidence. To test the simulator, `src/13_backtest_tournaments.py` runs it blind on ten past tournaments: the World Cups of 2006, 2010, 2014, 2018 and 2022, and the Euros of 2008, 2012, 2016, 2020 (played in 2021) and 2024.
+
+**The protocol was fixed first.** [`docs/BACKTEST_PROTOCOL.md`](docs/BACKTEST_PROTOCOL.md) sets out the tournaments, cutoffs, models, metrics, seeds and the decision rule. It was committed (`14f174e`) before any backtest code existed, and nothing was changed after the results came in. There are no deviations.
+
+**How each tournament is run.**
+
+- The model sees only matches strictly before the day before kickoff. Elo is replayed on those matches, the Step-3 ensemble is refit on them, and the FIFA blend uses the latest ranking release before the cutoff.
+- The simulator plays the real groups and then the official bracket. For the Euros from 2016 on, that includes UEFA's third-place allocation tables: one for 2016, another shared by 2020 and 2024, both transcribed from UEFA's regulations.
+- A host gets home advantage only in a match played in its own country. Every other match is neutral.
+- Each model gets 10,000 simulations, all from the same seed.
+
+**How the result is checked.** Each team's actual stage comes from `results.csv`, with `shootouts.csv` settling knockouts decided on penalties. Tests confirm that every configured bracket, fed the real group standings, reproduces every real knockout match at its real venue.
+
+Four models go through the same simulator:
+
+- the **full model** that shipped (Step-3 ensemble, Elo blended with the FIFA ranking);
+- the same model with **no FIFA blend**;
+- **Elo only** (the logistic regression from `03_elo_baseline.py`, on raw Elo);
+- **uniform**, where every match is a third each way.
+
+Lower is better for all three metrics. Intervals are 95% paired-bootstrap intervals over whole tournaments. With only 10 tournaments they are wide, and a percentile bootstrap on so few clusters, if anything, understates the uncertainty.
+
+| Model | RPS (primary) | −ln P(actual champion) | Brier, reached semi-final |
+|---|---|---|---|
+| **Full model (shipped)** | **0.1069** [0.0983, 0.1162] | **2.128** [1.676, 2.579] | **0.1046** [0.0852, 0.1272] |
+| No FIFA blend | 0.1072 [0.0979, 0.1170] | 2.123 [1.654, 2.589] | 0.1043 [0.0839, 0.1277] |
+| Elo only | 0.1100 [0.0993, 0.1214] | 2.219 [1.756, 2.673] | 0.1091 [0.0868, 0.1342] |
+| Uniform | 0.1359 [0.1297, 0.1421] | 3.244 [3.072, 3.400] | 0.1339 [0.1171, 0.1528] |
+
+| Paired difference | RPS | −ln P(champion) | Brier, semi-final |
+|---|---|---|---|
+| Full − Elo only | **−0.0031 [−0.0058, −0.0005]** | −0.091 [−0.326, +0.128] | −0.0045 [−0.0099, −0.00002] |
+| Full − no FIFA blend | −0.0003 [−0.0010, +0.0004] | +0.006 [−0.050, +0.051] | +0.0003 [−0.0008, +0.0015] |
+| Full − uniform | −0.0290 [−0.0344, −0.0241] | −1.116 [−1.535, −0.712] | −0.0294 [−0.0404, −0.0171] |
+
+As a secondary figure, resampling teams instead of tournaments gives full − Elo only = −0.0025 [−0.0051, +0.0001] on RPS (n = 264). That interval treats teams as independent, which they are not, since only one team per tournament can win.
+
+Tournament by tournament, for the full model:
+
+| Tournament | Champion | P(title), full (rank) | P(title), Elo only | Full model's favourite | RPS full | RPS Elo only |
+|---|---|---|---|---|---|---|
+| World Cup 2006 | Italy | 3.6% (9th) | 4.7% | Brazil 17.7% | 0.0939 | 0.0933 |
+| World Cup 2010 | Spain | 26.7% (1st) | 17.5% | Spain 26.7% | 0.0899 | 0.0903 |
+| World Cup 2014 | Germany | 9.9% (3rd) | 10.5% | Brazil 50.3% | 0.0956 | 0.0954 |
+| World Cup 2018 | France | 5.0% (7th) | 6.4% | Brazil 32.9% | 0.1055 | 0.1111 |
+| World Cup 2022 | Argentina | 26.2% (2nd) | 27.6% | Brazil 34.1% | 0.1009 | 0.1003 |
+| Euro 2008 | Spain | 13.1% (3rd) | 8.0% | Germany 19.9% | 0.1346 | 0.1415 |
+| Euro 2012 | Spain | 42.7% (1st) | 39.1% | Spain 42.7% | 0.1260 | 0.1335 |
+| Euro 2016 | Portugal | 7.6% (5th) | 3.3% | France 29.0% | 0.1200 | 0.1314 |
+| Euro 2020 | Italy | 9.5% (5th) | 8.4% | Belgium 22.8% | 0.0923 | 0.0942 |
+| Euro 2024 | Spain | 11.2% (4th) | 17.2% | France 17.5% | 0.1106 | 0.1086 |
+
+![Reliability of the title-odds backtest: predicted versus observed stage-reach frequencies, full model and Elo only](figures/tournament_calibration.png)
+
+The chart pools every team's probability of reaching each stage, from the knockouts to the title, over all ten tournaments. Both models sit close to the diagonal. The bins above 0.7 hold 22 to 40 predictions each, so their wobble is within noise. The uniform model is left off the chart because it is calibrated by construction: every team gets the share of teams that reach each stage. Calibration alone therefore cannot separate these models; RPS and the log score can.
+
+**Verdict.**
+
+- **Against Elo only, narrowly yes on the primary metric.** Under the pre-registered rule, the full model beats Elo only: the RPS interval lies wholly below zero. The margin is small, about 3% of the score. The full model wins in 6 of the 10 tournaments, and the upper end of the interval sits close to zero. On the log score of the actual champion, the two are not distinguishable. The semi-final Brier points the same way as RPS, but only just.
+- **The FIFA-ranking blend is not the source of the edge.** The full model and the no-blend model are indistinguishable on all three metrics, which agrees with the blend's match-level backtest. The edge over Elo only comes from the ensemble around Elo: form, home advantage and the draw-aware classifier. This backtest does not separate those three. Elo only has no home feature, so part of the gap may be host advantage.
+- **Against uniform, clearly yes on every metric.**
+
+**What this does and does not show.**
+
+- The model's hyperparameters (W = 0.3, T = 0.95, rho = −0.15) were chosen on a walk-forward over the whole match history, which includes these ten tournaments. The Elo settings and the blend weights were set by hand by someone who knew that history. Refitting per tournament removes parameter leakage, but not that selection.
+- The simulator simplifies group tiebreaks: no head-to-head and no fair play.
+- A host's home flag applies in every match in its own country. That is how Brazil became a 50% favourite in 2014.
+- The 2026 path's approximate round-of-32 seeding has no historical equivalent, so it is not covered by this backtest.
+
+Every number here is in `data/tournament_backtest.csv`, and the per-team probabilities are in `data/tournament_backtest_teams.csv`. Re-running the script reproduces both byte for byte.
+
+## 2026 title odds: a retrospective illustration
+
+**Built after the tournament.** This table was produced in September 2026 by a simulator written then. Its inputs contain no tournament result, but its design was chosen with hindsight (see [Leakage caveats](#leakage-caveats)). Read it as an illustration of the model, not as a forecast. The evidence for the simulator is the [backtest above](#title-odds-backtest).
 
 The rest of the pipeline stops at per-fixture win/draw/loss probabilities. `src/10_tournament_sim.py` plays the whole 2026 bracket out 20,000 times with the Step 3 ensemble model, to turn those into P(reaches this round) and P(lifts the trophy).
 
@@ -219,9 +297,9 @@ These are stated plainly rather than argued away.
    Their results are *not* in `results.csv` (both rows are scoreless), so they did not enter the model. But the forecast for them was committed after they were played and cannot be called a prediction. **Treat these two as out of sample and exclude them from any scoring.** The four fixtures dated 13 June kicked off after the commit: 10:09 UTC is 06:09 in East Rutherford and Foxborough and 03:09 in Santa Clara and Vancouver, hours before any plausible kickoff — though the fixture data carries dates only, not kickoff times, so this rests on venue local time rather than on the data.
 3. **The simulator's data is clean; its design choices were not.** `10_tournament_sim.py` was written in September, after the tournament finished, so this needs separating into two claims.
 
-   *The data is clean, and this is checkable.* The simulator reads exactly three files — `data/raw/results.csv`, `data/raw/former_names.csv` and `data/raw/fifa_ranking_2026-06-11.csv` — and refits the model in-process. It reads no prediction file, and it does not read `wc26_actual_results.csv`. In `results.csv` the latest match carrying a score is **11 June 2026**, and the number of scored rows after that date is **zero**; `features.csv` derives from those same played rows and ends on the same date; the FIFA snapshot is dated 11 June. **No tournament result is reachable from the simulator's inputs.** It cannot have fitted to, or been tuned against, an outcome it reports.
+   *The data is clean, and this is checkable.* For 2026 the simulator reads exactly three files — `data/raw/results.csv`, `data/raw/former_names.csv` and `data/raw/fifa_ranking_2026-06-11.csv` — and refits the model in-process. Only its backtest formats also read `data/raw/fifa_ranking_history.csv`, whose last release is September 2024. It reads no prediction file, and it does not read `wc26_actual_results.csv`. In `results.csv` the latest match carrying a score is **11 June 2026**, and the number of scored rows after that date is **zero**; `features.csv` derives from those same played rows and ends on the same date; the FIFA snapshot is dated 11 June. **No tournament result is reachable from the simulator's inputs.** It cannot have fitted to, or been tuned against, an outcome it reports.
 
-   *The design choices are not clean.* The bracket-seeding approximation and the draw-resolution rule were chosen by someone who already knew how the tournament had gone. Nothing in the data leaks, but the structure around it was picked with hindsight, and no audit of the inputs can rule that out. The "How the real tournament went" comparison above should be read with that in mind.
+   *The design choices are not clean.* The bracket-seeding approximation and the draw-resolution rule were chosen by someone who already knew how the tournament had gone. Nothing in the data leaks, but the structure around it was picked with hindsight, and no audit of the inputs can rule that out. The "How the real tournament went" comparison above should be read with that in mind. The [title-odds backtest](#title-odds-backtest) runs the same machinery on ten past tournaments under a protocol fixed before any result. It does not cover the 2026-only round-of-32 seeding.
 4. **Git commit dates are author-set metadata. They are evidence, not proof.** No server-side timestamp attests the 13 June date. A backdated commit cannot be ruled out from the repository alone.
 
    Why the committer date of `99a2305` is 18 September, and what the author's local copy of the original repository is said to show, is in [docs/PROVENANCE.md](docs/PROVENANCE.md#why-the-committer-date-is-18-september).
@@ -247,7 +325,7 @@ The overlay was a prediction-time adjustment. It did not retrain the model or ad
 
 ## Data
 
-`data/raw/` holds the inputs: ~49k historical results (played rows have scores, 2026 fixtures have NA), a FIFA ranking snapshot, goalscorers, shootouts, and a former-name mapping so each country's history sits under one current name. `fifa_ranking_history.csv` holds every men's FIFA ranking release from December 1992 to September 2024, used only by `12_blend_backtest.py`. `data/raw/` also holds `wc26_actual_results.csv` — the 72 actual group-stage results, used only for scoring and never as a model input.
+`data/raw/` holds the inputs: ~49k historical results (played rows have scores, 2026 fixtures have NA), a FIFA ranking snapshot, goalscorers, shootouts, and a former-name mapping so each country's history sits under one current name. `fifa_ranking_history.csv` holds every men's FIFA ranking release from December 1992 to September 2024, used by `12_blend_backtest.py` and by the title-odds backtest (`10_tournament_sim.py` for past tournaments, run from `13_backtest_tournaments.py`). `shootouts.csv` settles drawn knockout matches in that backtest's ground truth. `data/raw/` also holds `wc26_actual_results.csv` — the 72 actual group-stage results, used only for scoring and never as a model input.
 
 **Source of `wc26_actual_results.csv`:** the same upstream dataset `results.csv` came from — [`martj42/international_results`](https://github.com/martj42/international_results), file `results.csv` on `master`. Retrieved **2026-09-19T13:34:01Z** from `https://raw.githubusercontent.com/martj42/international_results/master/results.csv` (upstream commit `394fe81893`, dated 2026-08-26T21:56:21Z; sha256 of the download `df35268f8fc341ff7fb93d448b4e40356676ac35300a6b4461fd199a99ac1514`). Lineage was checked rather than assumed: the upstream file has identical columns, the two matches already scored in the frozen `results.csv` agree exactly, and all 70 forecast fixtures matched on `(date, home_team, away_team)` with no ambiguity. **`data/raw/results.csv` was not modified** — its 70 fixture rows remain scoreless, which a test enforces. `data/` holds derived artifacts — the cleaned match table, engineered features, the saved Poisson model, the team-news cache and the four output CSVs above, including `tournament_sim.csv` with the Monte Carlo output described above.
 
@@ -258,11 +336,12 @@ The overlay was a prediction-time adjustment. It did not retrain the model or ad
 - **Pipeline** — data cleaning through prediction, run end to end by `python run_pipeline.py`. Scoring (`11`) and the blend backtest (`12`) run separately.
 - **Model** — the Step-3 ensemble (0.3 Dixon-Coles Poisson + 0.7 multinomial logit, T = 0.95), 0.9024 walk-forward log-loss on ~49k historical matches, and neutral to slightly positive with the FIFA blend the forecast used.
 - **Result** — 0.8851 log-loss, 0.5248 Brier, 61.8% accuracy over the 68 group-stage fixtures that kicked off after the forecast was committed, against 0.9176 for an Elo-only baseline and 1.0986 for a uniform prior. On a paired bootstrap the edge over Elo alone is not statistically distinguishable; the margin over the uniform prior is. See [How it actually did](#how-it-actually-did).
+- **Title odds** — the tournament simulator is backtested on 10 past tournaments under a pre-registered protocol. It beats Elo only narrowly on RPS, is not distinguishable from it on the champion log score, and is far better than uniform. See [Title odds backtest](#title-odds-backtest).
 - **Provenance** — `data/predictions.csv` is frozen, its `p_*_pre` columns pinned by test to the model run in `99a2305`. The team-news overlay has been removed. Leakage caveats are listed rather than argued away, including the limits of what git dates can prove.
-- **Tests** — in `tests/`, no network calls: output schemas, frozen-forecast provenance, the scoring exclusion rule, the paired bootstrap against synthetic cases with known answers, the FIFA blend (08 with the blend on reproduces the frozen forecast) and the seeded tournament simulation reproducing its committed output.
-- Single entry point, `requirements.txt` with minimum versions, dev deps split into `requirements-dev.txt`, MIT license.
+- **Tests** — in `tests/`, no network calls: output schemas, frozen-forecast provenance, the scoring exclusion rule, the paired bootstrap against synthetic cases with known answers, the FIFA blend (08 with the blend on reproduces the frozen forecast), the seeded tournament simulation reproducing its committed output, the forecast inputs pinned to their `99a2305` bytes, the backtest tournament formats and brackets checked against every real knockout match, the derived champions and runners-up, and the backtest scoring rules.
+- Single entry point, `requirements.txt` with minimum versions, dev deps split into `requirements-dev.txt`, exact versions in `requirements-lock.txt`, MIT license.
 - Tests run in GitHub Actions on every push and pull request.
 
-**Not included.** Visualizations of the predictions. The validated result covers the **group stage only** — the 32 knockout matches were never forecast, and scoring them would first need 90-minute scores, since the upstream dataset records knockout results after extra time.
+**Not included.** Visualizations beyond the backtest's reliability chart. The validated result covers the **group stage only** — the 32 knockout matches were never forecast, and scoring them would first need 90-minute scores, since the upstream dataset records knockout results after extra time.
 
 **Known limitation.** Features are the bottleneck: `elo_diff` dominates, and further gains need richer data (squad or market value, rest and travel) rather than more model tuning.
