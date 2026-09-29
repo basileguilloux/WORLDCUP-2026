@@ -201,7 +201,7 @@ Provenance is checked in CI-able form by `tests/test_frozen_forecast.py`, which 
 Independent of any date, and worth more than any of that:
 
 - Every input (`data/raw/results.csv`, `features.csv`, `processed_matches.csv`, `poisson_model.joblib` and the FIFA snapshot) has **exactly one commit** and **unchanged bytes** since.
-- The same holds for `step3_classifier.py`, `harness.py`, `05_model.py`, `04_features.py` and `02_elo.py`. `git diff 99a2305 HEAD` across them is empty.
+- `git diff 99a2305 HEAD` is empty for `step3_classifier.py`, `harness.py`, `04_features.py` and `02_elo.py`. For `05_model.py` it shows one change, made on 29 September 2026: the refit is saved to the git-ignored `data/build/` instead of over the committed `data/poisson_model.joblib`. The model-fitting code is untouched, and the refit predicts exactly what the committed model does. `tests/test_frozen_inputs.py` pins every input above to its `99a2305` bytes.
 - Re-running the pipeline today reproduces the numbers to 1.11e-16.
 - `results.csv` contains **no tournament result after 11 June**. A forecast produced later from this repository's data could not have known any outcome it predicts, whatever date sits on the commit.
 
