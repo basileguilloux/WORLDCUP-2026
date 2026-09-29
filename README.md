@@ -236,6 +236,8 @@ The chart pools every team's probability of reaching each stage, from the knocko
 
 Every number here is in `data/tournament_backtest.csv`, and the per-team probabilities are in `data/tournament_backtest_teams.csv`. Re-running the script reproduces both byte for byte.
 
+Squad market value was also tested locally as a strength input (v2, 7 tournaments) and was not distinguishable from the shipped model. The data it needs can't be redistributed, so that test is not part of this repository.
+
 ## 2026 title odds: a retrospective illustration
 
 **Built after the tournament.** This table was produced in September 2026 by a simulator written then. Its inputs contain no tournament result, but its design was chosen with hindsight (see [Leakage caveats](#leakage-caveats)). Read it as an illustration of the model, not as a forecast. The evidence for the simulator is the [backtest above](#title-odds-backtest).
