@@ -18,7 +18,7 @@ pip install -r requirements.txt
 python run_pipeline.py
 ```
 
-`run_pipeline.py` runs every step below from the repo root and writes `data/power_rankings.csv`, `data/fixture_predictions.csv` and `data/tournament_sim.csv`.
+`run_pipeline.py` runs every step below from the repo root except `11` and `12`, and writes `data/power_rankings.csv`, `data/fixture_predictions.csv`, `data/tournament_sim.csv` and the title-odds backtest outputs (`data/tournament_backtest.csv`, `data/tournament_backtest_teams.csv`, `figures/tournament_calibration.png`).
 
 **It does not touch `data/predictions.csv`.** That file is the **frozen forecast** (see below).
 
@@ -36,6 +36,12 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
+`requirements-lock.txt` pins the exact versions CI installs (Python 3.13). That environment passes every test and regenerates the backtest outputs byte for byte:
+
+```bash
+python3.13 -m venv .venv && .venv/bin/pip install -r requirements-lock.txt
+```
+
 ## Pipeline (src/)
 
 Run in order from the repo root. `harness.py`, `step2_dixoncoles.py`, `step3_classifier.py` and `eval_baseline.py` are deliberately **not** number-prefixed: they are imported as modules by the later stages, and `import 08_foo` is a syntax error in Python.
@@ -46,17 +52,18 @@ Run in order from the repo root. `harness.py`, `step2_dixoncoles.py`, `step3_cla
 | 2 | `02_elo.py` | `data/raw/results.csv` | `data/processed_matches.csv` |
 | 3 | `03_elo_baseline.py` | `data/processed_matches.csv` | *(report only)* |
 | 4 | `04_features.py` | `data/processed_matches.csv` | `data/features.csv` |
-| 5 | `05_model.py` | `data/features.csv` | `data/poisson_model.joblib` |
+| 5 | `05_model.py` | `data/features.csv` | `data/build/poisson_model.joblib` (git-ignored refit; the committed `data/poisson_model.joblib` is frozen) |
 | — | `eval_baseline.py` | `data/features.csv` | *(report only)* — the number to beat |
 | — | `harness.py` | `data/features.csv` | *(report only)* — walk-forward evaluator |
 | — | `step2_dixoncoles.py` | `data/features.csv` | *(report only)* — sweeps Dixon-Coles `rho` |
 | — | `step3_classifier.py` | `data/features.csv` | *(report only)* — **the winning model** |
-| 6 | `06_simulate.py` | `results.csv`, `poisson_model.joblib` | *(report only)* |
-| 7 | `07_blend_predict.py` | `results.csv`, `fifa_ranking_2026-06-11.csv` | `data/power_rankings.csv` |
+| 6 | `06_simulate.py` | `results.csv`, `data/build/poisson_model.joblib` | *(report only)* |
+| 7 | `07_blend_predict.py` | `results.csv`, `fifa_ranking_2026-06-11.csv`, `data/build/poisson_model.joblib` | `data/power_rankings.csv` |
 | 8 | `08_fixture_predictions.py` | `features.csv`, `results.csv`, FIFA ranking | `data/fixture_predictions.csv` |
 | 10 | `10_tournament_sim.py` | `features.csv`, `results.csv`, FIFA ranking | `data/tournament_sim.csv` |
 | 11 | `11_score_tournament.py` | `predictions.csv`, `wc26_actual_results.csv` | *(report only)* — scores the frozen forecast |
 | 12 | `12_blend_backtest.py` | `features.csv`, `data/raw/fifa_ranking_history.csv` | `data/blend_backtest.csv` — walk-forward of the FIFA blend |
+| 13 | `13_backtest_tournaments.py` | `results.csv`, `features.csv`, `shootouts.csv`, FIFA ranking history | `data/tournament_backtest.csv`, `data/tournament_backtest_teams.csv`, `figures/tournament_calibration.png` — title odds on 10 past tournaments |
 
 What each output is:
 

@@ -36,6 +36,7 @@ STEPS = [
     ("07_blend_predict.py", "data/power_rankings.csv"),
     ("08_fixture_predictions.py", "data/fixture_predictions.csv"),
     ("10_tournament_sim.py", "data/tournament_sim.csv"),
+    ("13_backtest_tournaments.py", "data/tournament_backtest.csv"),
 ]
 
 
