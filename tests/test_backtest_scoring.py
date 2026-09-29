@@ -89,3 +89,19 @@ def test_summary_rows_match_team_rows(outputs):
             vals = bt[(bt.tournament != "ALL") & (bt.model == model) & (bt.metric == metric)].value
             overall = bt[(bt.tournament == "ALL") & (bt.model == model) & (bt.metric == metric)].value
             assert len(vals) == 10 and abs(vals.mean() - overall.iloc[0]) < 1e-5
+
+
+def test_post_hoc_readings_in_readme(outputs):
+    """The README's post-hoc lines must match the committed backtest output."""
+    from math import comb
+    bt, _ = outputs
+    per = bt[bt.tournament != "ALL"]
+    rps = per[per.metric == "rps"].pivot(index="tournament", columns="model", values="value")
+    wins = int((rps.full < rps.elo_only).sum())
+    assert (wins, len(rps)) == (6, 10)
+    assert sum(comb(10, k) for k in range(wins, 11)) == 386
+    geo = {m: np.exp(-bt[(bt.tournament == "ALL") & (bt.model == m)
+                         & (bt.metric == "champion_log_score")].value.iloc[0])
+           for m in ["full", "no_blend", "elo_only", "uniform"]}
+    assert {m: round(g, 3) for m, g in geo.items()} == {
+        "full": 0.119, "no_blend": 0.120, "elo_only": 0.109, "uniform": 0.039}
